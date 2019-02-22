@@ -6,17 +6,20 @@ class Help {
     }
 
     showHelp() {
-        if (!this.about) {
-            // collect all command controllers and show their help
-            console.log();
-            fs.readdir('../commands', (err, files) => {
-                files.forEach(file => {
-                    console.log(file);
+        return new Promise(resolve => {
+            if (!this.about) {
+                // TODO: collect all command controllers and show their help
+                console.log();
+                fs.readdir('../commands', (err, files) => {
+                    files.forEach(file => {
+                        console.log(file);
+                    });
+                    resolve();
                 });
-            })
-        } else {
-            // show specific command controller help
-        }
+            } else {
+                // show specific command controller help
+            }
+        });
     }
 }
 
