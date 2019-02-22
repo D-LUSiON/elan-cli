@@ -66,10 +66,10 @@ console.log(figlet.textSync('ElAn CLI', {
 
 if (!argv._[0]) {
     console.log(chalk.red(chalk `
-    {rgb(255,131,0) Please, provide valid command!}
+{rgb(255,131,0) Please, provide valid command!}
     `));
     const help = new(require('./commands/help'))();
-    help.showHelp().then(() => {
+    help.entry().then(() => {
         process.exit();
     });
 }
@@ -77,10 +77,15 @@ if (!argv._[0]) {
 if (!fileOps.checkDir(path.join(__dirname, 'commands', `${argv._[0]}.js`))) {
     console.log(`Command ${chalk.red(argv._[0])} does not exist!`);
     const help = new(require('./commands/help'))();
-    help.showHelp().then(() => {
+    help.entry().then(() => {
+        process.exit();
+    });
+} else {
+    const commandController = require(path.join(__dirname, 'commands', `${argv._[0]}.js`));
+    const comm = new commandController(argv);
+    
+    comm.entry().then(() => {
         process.exit();
     });
 }
 
-const commandController = require(path.join(__dirname, 'commands', `${argv._[0]}.js`));
-const comm = new commandController();
