@@ -69,22 +69,18 @@ if (!argv._[0]) {
     {rgb(255,131,0) Please, provide valid command!}
     `));
     const help = new(require('./commands/help'))();
-    help.showHelp();
-    process.exit();
+    help.showHelp().then(() => {
+        process.exit();
+    });
 }
 
 if (!fileOps.checkDir(path.join(__dirname, 'commands', `${argv._[0]}.js`))) {
     console.log(`Command ${chalk.red(argv._[0])} does not exist!`);
     const help = new(require('./commands/help'))();
-    help.showHelp();
-    process.exit();
+    help.showHelp().then(() => {
+        process.exit();
+    });
 }
 
-console.log('exists! continuing...');
 const commandController = require(path.join(__dirname, 'commands', `${argv._[0]}.js`));
-
-console.log(chalk `
-CPU: {red 25%}
-RAM: {green 52%}
-DISK: {rgb(255,131,0) 88%}
-`);
+const comm = new commandController();
