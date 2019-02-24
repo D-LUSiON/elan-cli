@@ -4,7 +4,12 @@ const inquirer = require('inquirer');
 const chalk = require('chalk');
 const loadingSpinner = require('loading-spinner');
 const exec = require('child_process').exec;
+const spawn = require('child_process').spawn;
 const ncp = require('ncp').ncp; // Recursive copying
+
+const np = process.argv[0].split(/[\\\/]/g);
+np.pop();
+const npm = path.join(...np, 'node_modules', 'npm', 'bin', 'npm-cli.js');
 
 class New {
     constructor(args) {
@@ -18,17 +23,17 @@ class New {
     }
 
     entry() {
-        console.log(this.args);
-
+        console.log(process.argv[0], np, npm);
+        
         return new Promise((resolve, reject) => {
             // TODO: Make Promise.all if possible
             console.log('Start asking questions...');
             this.startAskingQuestions().then(() => {
-                console.log('Questions answered, installing Angular...');
+                console.log(chalk `\n{green Alright, everithing's set! Creating Angular project....}\n`);
                 this.initAngular().then(() => {
-                    console.log('Angular installed');
+                    console.log(chalk `{green Angular dependancies installed! Now it's time for Electron...}`);
                     this.initElectron().then(() => {
-                        console.log(chalk `\n{rgb(255,131,0) Everything's ready to go!}\n\nNow write {green cd ${this.package_json_options.name}} in your console and start the project with {green elan serve}!`);
+                        console.log(chalk `\n{rgb(255,131,0) Everything's ready to go!}\n\nWrite {green cd ${this.package_json_options.name}} in your console and start the project with {green elan serve}!`);
                         resolve();
                     });
                 });
@@ -123,24 +128,28 @@ class New {
     }
 
     initAngular() {
-        return new Promise(resolve => {
-            const ng_command = `ng new ${this.package_json_options.name} --skipInstall=true --commit=false --interactive=false ${Object.keys(this.angular_options).map(key => `--${key}=${this.angular_options[key]}`).join(' ')}`;
+        return new Promise((resolve, reject) => {
+            const ng_new = spawn('node', [
+                path.join(__dirname, '../node_modules/@angular/cli/bin/ng'),
+                'new',
+                this.package_json_options.name,
+                '--skipInstall=true',
+                '--commit=false',
+                '--interactive=false',
+                ...Object.keys(this.angular_options).map(key => `--${key}=${typeof this.angular_options[key] === 'string' ? this.angular_options[key].toLowerCase() : this.angular_options[key]}`)
+            ], {
+                stdio: [process.stdin, process.stdout, process.stderr]
+            });
 
-            loadingSpinner.start(
-                100, {
-                    clearChar: true,
-                    clearLine: true,
-                    doNotBlock: true,
-                    hideCursor: true
+            ng_new.once('exit', (code, signal) => {
+                if (code === 0) {
+                    console.log(chalk `{green Angular project created!}`);
+                    this._modifyPackageJSON().then((error, stdout, stderr) => {
+                        resolve();
+                    });
+                } else {
+                    process.exit(code);
                 }
-            );
-
-            exec(ng_command, () => {
-                loadingSpinner.stop();
-                console.log(chalk `{green Angular project created!}`);
-                this._modifyPackageJSON().then((error, stdout, stderr) => {
-                    resolve();
-                });
             });
         });
     }
@@ -180,61 +189,41 @@ class New {
         return new Promise((resolve, reject) => {
             // process.chdir(`./${this.package_json_options.name}`);
             ncp(path.join(__dirname, '..', 'assets'), process.cwd(), () => {
-                console.log(chalk `{green Electron files created! Installing Electron and Angular dependancies...}`);
-                loadingSpinner.start(
-                    100, {
-                        clearChar: true,
-                        clearLine: true,
-                        doNotBlock: true,
-                        hideCursor: true
-                    }
-                );
-                Promise.all([
-                    new Promise((resolve_angular, reject) => {
-                        exec('npm i', {
-                            cwd: path.join(process.cwd(), this.package_json_options.name)
-                        }, (err) => {
-                            loadingSpinner.stop();
-                            console.log(chalk `{green Angular dependancies installed!}`);
+                console.log(chalk `{green Electron files created! Installing Angular dependancies...}`);
+
+                new Promise((resolve_angular, reject) => {
+                    const npm_install = spawn('node', [npm, 'install'], {
+                        cwd: path.join(process.cwd(), this.package_json_options.name),
+                        stdio: [process.stdin, process.stdout, process.stderr]
+                    });
+
+                    npm_install.once('exit', (code, signal) => {
+                        if (code === 0) {
+                            console.log(chalk `{green Angular dependancies installed, installing Electron dependancies...}`);
                             resolve_angular();
-                        });
-                    }),
+                        } else {
+                            process.exit(code);
+                        }
+                    });
+                }).then(() => {
                     new Promise((resolve_electron, reject) => {
-                        exec('npm i', {
-                            cwd: path.join(process.cwd(), this.package_json_options.name, 'electron')
-                        }, (err) => {
-                            console.log(chalk `{green Electron dependancies installed!}`);
-                            resolve_angular();
+                        const npm_install = spawn('node', [npm, 'install'], {
+                            cwd: path.join(process.cwd(), this.package_json_options.name, 'electron'),
+                            stdio: [process.stdin, process.stdout, process.stderr]
                         });
-                        resolve_electron();
-                    }),
-                ]).then(value => {
-                    resolve();
+
+                        npm_install.once('exit', (code, signal) => {
+                            if (code === 0) {
+                                console.log(chalk`{green Electron dependancies installed!}`);
+                                resolve_electron();
+                            } else {
+                                process.exit(code);
+                            }
+                        }); 
+                    }).then(() => {
+                        resolve();
+                    });
                 });
-                // console.log(chalk `{green Installing Angular dependancies...}`, process.cwd());
-                
-                // exec('npm i', {
-                //     cwd: path.join(process.cwd(), this.package_json_options.name)
-                // }, (err) => {
-                //     loadingSpinner.stop();
-                //     console.log(chalk `{green Angular dependancies installed!}`);
-                //     process.chdir('./electron');
-                //     console.log(chalk `{green Installing Electron dependancies...}`, process.cwd());
-                //     loadingSpinner.start(
-                //         100, {
-                //             clearChar: true,
-                //             clearLine: true,
-                //             doNotBlock: true,
-                //             hideCursor: true
-                //         }
-                //     );
-                //     exec('npm i', (err) => {
-                //         loadingSpinner.stop();
-                //         console.log(chalk `{green Electron dependancies installed!}`);
-                //         process.chdir('..');
-                //         resolve();
-                //     });
-                // });
             });
         });
     }
