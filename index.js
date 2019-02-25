@@ -61,7 +61,7 @@ console.log(figlet.textSync('ElAn CLI', {
     font: 'JS Bracket Letters',
     horizontalLayout: 'default',
     verticalLayout: 'default'
-}));
+}), `v${packagejson.version}`);
 
 
 if (!argv._[0]) {
@@ -83,9 +83,11 @@ if (!fileOps.checkDir(path.join(__dirname, 'commands', `${argv._[0]}.js`))) {
 } else {
     const commandController = require(path.join(__dirname, 'commands', `${argv._[0]}.js`));
     const comm = new commandController(argv);
-    
+
     comm.entry().then(() => {
-        process.exit();
+        process.exit(0);
+    }).catch((err) => {
+        console.error(chalk `{rgb(255,0,0) ${err}}`);
+        process.exit(1);
     });
 }
-

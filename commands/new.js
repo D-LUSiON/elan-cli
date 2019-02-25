@@ -23,21 +23,34 @@ class New {
     }
 
     entry() {
-        console.log(process.argv[0], np, npm);
-        
         return new Promise((resolve, reject) => {
-            // TODO: Make Promise.all if possible
-            console.log('Start asking questions...');
-            this.startAskingQuestions().then(() => {
-                console.log(chalk `\n{green Alright, everithing's set! Creating Angular project....}\n`);
-                this.initAngular().then(() => {
-                    console.log(chalk `{green Angular dependancies installed! Now it's time for Electron...}`);
-                    this.initElectron().then(() => {
-                        console.log(chalk `\n{rgb(255,131,0) Everything's ready to go!}\n\nWrite {green cd ${this.package_json_options.name}} in your console and start the project with {green elan serve}!`);
-                        resolve();
+            if (!fs.existsSync(path.join(process.cwd(), this.args._[1]))) {
+                this.startAskingQuestions().then(() => {
+                    console.log(chalk `\n{green Alright, everithing's set! Creating Angular project....}\n`);
+                    this.initAngular().then(() => {
+                        this.initElectron().then(() => {
+                            this.installElectron().then(() => {
+                                this.installAngular().then(() => {
+                                    console.log(chalk `\n{rgb(255,128,0) Everything's ready to go!}\n\nWrite {green cd ${this.package_json_options.name}} in your console and start the project with {green elan serve}!`);
+                                    resolve();
+                                }).catch((err) => {
+                                    reject(err);
+                                });
+                            }).catch((err) => {
+                                reject(err);
+                            });
+                        }).catch((err) => {
+                            reject(err);
+                        });
+                    }).catch((err) => {
+                        reject(err);
                     });
+                }).catch((err) => {
+                    reject(err);
                 });
-            });
+            } else {
+                reject(`Folder with the name "${this.args._[1]}" already exists!`);
+            }
         });
     }
 
@@ -120,7 +133,6 @@ class New {
                         ...this.angular_options,
                         ...angular_answers
                     };
-
                     resolve();
                 });
             });
@@ -187,43 +199,48 @@ class New {
 
     initElectron() {
         return new Promise((resolve, reject) => {
-            // process.chdir(`./${this.package_json_options.name}`);
-            ncp(path.join(__dirname, '..', 'assets'), process.cwd(), () => {
-                console.log(chalk `{green Electron files created! Installing Angular dependancies...}`);
+            ncp(path.join(__dirname, '..', 'assets'), path.join(process.cwd(), this.package_json_options.name), () => {
+                console.log(chalk `{green Electron files created!}`);
+                resolve();
+            });
+        });
+    }
 
-                new Promise((resolve_angular, reject) => {
-                    const npm_install = spawn('node', [npm, 'install'], {
-                        cwd: path.join(process.cwd(), this.package_json_options.name),
-                        stdio: [process.stdin, process.stdout, process.stderr]
-                    });
+    installAngular() {
+        console.log(chalk `{rgb(255,128,0) Installing Angular dependancies...}`);
+        return new Promise((resolve) => {
+            const npm_install = spawn('node', [npm, 'install'], {
+                cwd: path.join(process.cwd(), this.package_json_options.name),
+                stdio: [process.stdin, process.stdout, process.stderr]
+            });
 
-                    npm_install.once('exit', (code, signal) => {
-                        if (code === 0) {
-                            console.log(chalk `{green Angular dependancies installed, installing Electron dependancies...}`);
-                            resolve_angular();
-                        } else {
-                            process.exit(code);
-                        }
-                    });
-                }).then(() => {
-                    new Promise((resolve_electron, reject) => {
-                        const npm_install = spawn('node', [npm, 'install'], {
-                            cwd: path.join(process.cwd(), this.package_json_options.name, 'electron'),
-                            stdio: [process.stdin, process.stdout, process.stderr]
-                        });
+            npm_install.once('exit', (code, signal) => {
+                if (code === 0) {
+                    console.log(chalk `{green Angular dependancies installed!}`);
+                    resolve();
+                } else {
+                    process.exit(code);
+                }
+            });
+        });
+    }
 
-                        npm_install.once('exit', (code, signal) => {
-                            if (code === 0) {
-                                console.log(chalk`{green Electron dependancies installed!}`);
-                                resolve_electron();
-                            } else {
-                                process.exit(code);
-                            }
-                        }); 
-                    }).then(() => {
-                        resolve();
-                    });
-                });
+    installElectron() {
+        console.log(chalk `{rgb(255,128,0) Installing Electron dependancies...}`);
+        return new Promise((resolve, reject) => {
+            const npm_install = spawn('node', [npm, 'install'], {
+                cwd: path.join(process.cwd(), this.package_json_options.name, 'electron'),
+                stdio: [process.stdin, process.stdout, process.stderr]
+            });
+
+            npm_install.once('exit', (code, signal) => {
+                if (code === 0) {
+                    console.log(chalk `{green Electron dependancies installed!}`);
+                    resolve();
+                } else {
+                    reject(code);
+                    process.exit(code);
+                }
             });
         });
     }
