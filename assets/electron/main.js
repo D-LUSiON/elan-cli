@@ -75,13 +75,13 @@ function createWindow() {
 }
 
 // Enable Electron reload if not in production mode
-if (!env.production)
-    require('electron-reload')(
-        path.join(__dirname, '..'), {
-            ignored: /node_modules|[\/\\]\./,
-            electron: path.join(__dirname, '..', 'node_modules', 'electron', 'dist', 'electron.exe')
-        }
-    );
+// if (!env.production)
+//     require('electron-reload')(
+//         path.join(__dirname, '..'), {
+//             ignored: /node_modules|[\/\\]\./,
+//             electron: path.join(__dirname, '..', 'node_modules', 'electron', 'dist', 'electron.exe')
+//         }
+//     );
 
 // Create window on electron intialization
 app.on('ready', createWindow)
