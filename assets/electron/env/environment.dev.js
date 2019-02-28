@@ -7,7 +7,7 @@ const environment = {
     port: 4201,
     html_src: 'html_dev',
     resizable: true,
-    frame: false,
+    frame: true,
     default_width: 1200,
     default_height: 675,
     min_width: 1024,

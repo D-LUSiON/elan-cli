@@ -57,17 +57,20 @@ const fonts = [
     'Kban'
 ]; // choose one from these
 
+process.on('SIGINT', () => {
+    console.log('SIGINT (Ctrl-C)');
+    process.exit(0);
+});
+
 console.log(figlet.textSync('ElAn CLI', {
     font: 'JS Bracket Letters',
     horizontalLayout: 'default',
     verticalLayout: 'default'
-}), `v${packagejson.version}`);
+}), chalk `{rgb(107, 107, 189) v${packagejson.version}\n}`);
 
 
 if (!argv._[0]) {
-    console.log(chalk.red(chalk `
-{rgb(255,131,0) Please, provide valid command!}
-    `));
+    console.log(chalk.red(chalk `{rgb(255,131,0) Please, provide valid command!}\n`));
     const help = new(require('./commands/help'))();
     help.entry().then(() => {
         process.exit();
@@ -78,7 +81,7 @@ if (!fileOps.checkDir(path.join(__dirname, 'commands', `${argv._[0]}.js`))) {
     console.log(`Command ${chalk.red(argv._[0])} does not exist!`);
     const help = new(require('./commands/help'))();
     help.entry().then(() => {
-        process.exit();
+        process.exit(0);
     });
 } else {
     const commandController = require(path.join(__dirname, 'commands', `${argv._[0]}.js`));
@@ -87,7 +90,7 @@ if (!fileOps.checkDir(path.join(__dirname, 'commands', `${argv._[0]}.js`))) {
     comm.entry().then(() => {
         process.exit(0);
     }).catch((err) => {
-        console.error(chalk `{rgb(255,0,0) ${err}}`);
+        console.error(chalk `\n{rgb(255,0,0) ${err}}`);
         process.exit(1);
     });
 }

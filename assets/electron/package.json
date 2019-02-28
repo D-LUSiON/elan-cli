@@ -1,10 +1,10 @@
 {
-    "name": "electron-angular-quickstart",
-    "productName": "Electron-Angular Quickstart",
-    "description": "Quickstart project for creating Electron application with Angular front-end",
-    "author": "D-LUSiON",
-    "version": "1.1.0",
-    "license": "MIT",
+    "name": "",
+    "productName": "",
+    "description": "",
+    "author": "",
+    "version": "",
+    "license": "",
     "scripts": {},
     "main": "main.js",
     "dependencies": {
