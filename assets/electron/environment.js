@@ -5,7 +5,7 @@ const environment = {
     description: package_json.description,
     production: false,
     port: 4201,
-    html_src: 'html_dev',
+    html_src: 'app',
     resizable: true,
     frame: true,
     default_width: 1200,

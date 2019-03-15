@@ -22,6 +22,11 @@ const fs = require('fs');
 
 const windowStateKeeper = require('electron-window-state');
 
+if (!env.production) {
+    app.setName(`${app.getName()} (development mode)`);
+    app.setPath('userData', `${app.getPath('userData')}-dev`);
+}
+
 let mainWindow;
 
 function createWindow() {

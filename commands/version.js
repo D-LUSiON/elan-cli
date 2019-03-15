@@ -1,4 +1,3 @@
-const path = require('path');
 const chalk = require('chalk');
 const loadingSpinner = require('loading-spinner');
 
@@ -11,7 +10,7 @@ class Version {
         this.usage = '$ elan version';
         this.options = [];
     }
-    
+
     entry() {
         return new Promise((resolve, reject) => {
             this.displayVersion().then(() => {
@@ -71,11 +70,11 @@ class Version {
                 const electron = local_versions.filter(x => x.startsWith('electron'))[0];
                 const electron_ver = electron ? electron.split('@').pop() : '';
 
-                console.log(chalk `
-ElAn-CLI: {${(!elan_ver || elan_latest > elan_ver) ? 'rgb(255,131,0)' : 'green'} ${elan_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(elan_ver && elan_ver < elan_latest) ? (' - newer version available: ' + elan_latest) : ''}}
-Electron: {${(!electron_ver || electron_latest > electron_ver) ? 'rgb(255,131,0)' : 'green'} ${electron_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(electron_ver && electron_ver < electron_latest) ? ('- newer version available: ' + electron_latest) : ''}}
-Angular/CLI: {${(!angular_ver || angular_latest > angular_ver) ? 'rgb(255,131,0)' : 'green'} ${angular_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(angular_ver && angular_ver < angular_latest) ? ('- newer version available: ' + angular_latest) : ''}}
-                `);
+                console.log([
+                    chalk `ElAn-CLI: {${(!elan_ver || elan_latest > elan_ver) ? 'rgb(255,131,0)' : 'green'} ${elan_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(elan_ver && elan_ver < elan_latest) ? (' - newer version available: ' + elan_latest) : ''}}`,
+                    chalk `Electron: {${(!electron_ver || electron_latest > electron_ver) ? 'rgb(255,131,0)' : 'green'} ${electron_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(electron_ver && electron_ver < electron_latest) ? ('- newer version available: ' + electron_latest) : ''}}`,
+                    chalk `Angular/CLI: {${(!angular_ver || angular_latest > angular_ver) ? 'rgb(255,131,0)' : 'green'} ${angular_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(angular_ver && angular_ver < angular_latest) ? ('- newer version available: ' + angular_latest) : ''}}`,
+                ].join('\n'));
                 resolve();
             });
         });

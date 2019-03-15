@@ -51,7 +51,7 @@ class Serve {
 
     _checkIsAngularPrebuild() {
         return new Promise((resolve) => {
-            fs.readdir(path.join(process.cwd(), 'html_dev'), (err, files) => {
+            fs.readdir(path.join(process.cwd(), 'app'), (err, files) => {
                 resolve(!!(files && files.length));
             });
         });
@@ -84,35 +84,20 @@ class Serve {
             // FIXME: Make Angular to hot reload only the window, not the entire application
             const watcher = chokidar.watch([
                 path.join(process.cwd(), 'electron'),
-                path.join(process.cwd(), 'html_dev')
+                path.join(process.cwd(), 'app')
             ], {
                 ignored: /node_modules|[\/\\]\./,
                 persistent: true,
                 ignoreInitial: true
             });
 
-            watcher
-                .on('add', path => {
-                    if (this.electron_changed_timeout)
-                        clearTimeout(this.electron_changed_timeout);
-                    this.electron_changed_timeout = setTimeout(() => {
-                        electron_proc.kill('SIGINT');
-                    }, 250);
-                })
-                .on('change', path => {
-                    if (this.electron_changed_timeout)
-                        clearTimeout(this.electron_changed_timeout);
-                    this.electron_changed_timeout = setTimeout(() => {
-                        electron_proc.kill('SIGINT');
-                    }, 250);
-                })
-                .on('unlink', path => {
-                    if (this.electron_changed_timeout)
-                        clearTimeout(this.electron_changed_timeout);
-                    this.electron_changed_timeout = setTimeout(() => {
-                        electron_proc.kill('SIGINT');
-                    }, 250);
-                });
+            watcher.on('all', path => {
+                if (this.electron_changed_timeout)
+                    clearTimeout(this.electron_changed_timeout);
+                this.electron_changed_timeout = setTimeout(() => {
+                    electron_proc.kill('SIGINT');
+                }, 250);
+            });
 
             const electron_proc = spawn(path.join(process.cwd(), 'node_modules', 'electron', 'dist', 'electron.exe'), ['electron/.'], {
                 stdio: [process.stdin, process.stdout, process.stderr]
@@ -124,6 +109,7 @@ class Serve {
                 watcher.close();
                 if (code === 0 || signal === 'SIGINT') {
                     console.log(chalk `{rgb(255,128,0) Changes detected!} {green Restarting Electron...}`);
+                    // TODO: Implement closing of window with variable
                     this._startElectron();
                 } else {
                     process.exit(code);

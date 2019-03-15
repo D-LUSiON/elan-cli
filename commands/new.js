@@ -1,5 +1,5 @@
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs-extra');
 const inquirer = require('inquirer');
 const chalk = require('chalk');
 const loadingSpinner = require('loading-spinner');
@@ -176,7 +176,7 @@ class New {
             const dev_options = {
                 "dev": {
                     "baseHref": "",
-                    "outputPath": "./html_dev",
+                    "outputPath": "./app",
                     "deleteOutputPath": false,
                     "optimization": false,
                     "outputHashing": "media",
@@ -202,6 +202,13 @@ class New {
             fs.writeFile(path_to_angular_json, JSON.stringify(angular_json, null, 2), 'utf8', () => {
                 resolve();
             });
+        });
+    }
+
+    _modifyGitIgnore() {
+        return new Promise((resolve, reject) => {
+            // TODO: Add /app and modify /node_modules to **/node_modules/**/*
+            resolve();
         });
     }
 
@@ -252,7 +259,7 @@ class New {
                     },
                     "devDependencies": {}
                 };
-                
+
                 electron_package_options.dependencies['electron-window-state'] = `^${result}`;
 
                 const path_to_package_json = path.join(process.cwd(), this.package_json_options.name, 'electron', 'package.json');

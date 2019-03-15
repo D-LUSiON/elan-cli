@@ -35,10 +35,16 @@
         "clui": "^0.3.6",
         "command-exists": "^1.2.8",
         "configstore": "^4.0.0",
+        "electron-builder": "^20.38.5",
+        "extend": "^3.0.2",
         "figlet": "^1.2.1",
+        "fs-extra": "^7.0.1",
         "inquirer": "^6.2.2",
         "loading-spinner": "^1.2.1",
         "minimist": "^1.2.0",
-        "ncp": "^2.0.0"
+        "ncp": "^2.0.0",
+        "png-to-ico": "^2.0.1",
+        "sharp": "^0.21.3",
+        "webpack": "^4.29.6"
     }
 }
