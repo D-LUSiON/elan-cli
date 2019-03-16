@@ -1,5 +1,5 @@
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs-extra');
 const chalk = require('chalk');
 const spawn = require('child_process').spawn;
 const chokidar = require('chokidar');
@@ -81,40 +81,45 @@ class Serve {
 
     _startElectron() {
         return new Promise((resolve, reject) => {
-            // FIXME: Make Angular to hot reload only the window, not the entire application
-            const watcher = chokidar.watch([
-                path.join(process.cwd(), 'electron'),
-                path.join(process.cwd(), 'app')
-            ], {
-                ignored: /node_modules|[\/\\]\./,
-                persistent: true,
-                ignoreInitial: true
-            });
+            fs.copy(path.join(process.cwd(), 'electron', 'env', 'environment.dev.js'), path.join(process.cwd(), 'electron', 'environment.js')).then(() => {
+                // FIXME: Make Angular to hot reload only the window, not the entire application
+                const watcher = chokidar.watch([
+                    path.join(process.cwd(), 'electron'),
+                    path.join(process.cwd(), 'app')
+                ], {
+                    ignored: /node_modules|[\/\\]\./,
+                    persistent: true,
+                    ignoreInitial: true
+                });
 
-            watcher.on('all', path => {
-                if (this.electron_changed_timeout)
-                    clearTimeout(this.electron_changed_timeout);
-                this.electron_changed_timeout = setTimeout(() => {
-                    electron_proc.kill('SIGINT');
-                }, 250);
-            });
+                watcher.on('all', path => {
+                    if (this.electron_changed_timeout)
+                        clearTimeout(this.electron_changed_timeout);
+                    this.electron_changed_timeout = setTimeout(() => {
+                        electron_proc.kill('SIGTERM');
+                    }, 250);
+                });
 
-            const electron_proc = spawn(path.join(process.cwd(), 'node_modules', 'electron', 'dist', 'electron.exe'), ['electron/.'], {
-                stdio: [process.stdin, process.stdout, process.stderr]
-            }, {
-                cwd: path.join(process.cwd(), 'electron')
-            });
+                const electron_proc = spawn(path.join(process.cwd(), 'node_modules', 'electron', 'dist', 'electron.exe'), ['electron/.'], {
+                    stdio: [process.stdin, process.stdout, process.stderr]
+                }, {
+                    cwd: path.join(process.cwd(), 'electron')
+                });
 
-            electron_proc.once('exit', (code, signal) => {
-                watcher.close();
-                if (code === 0 || signal === 'SIGINT') {
-                    console.log(chalk `{rgb(255,128,0) Changes detected!} {green Restarting Electron...}`);
-                    // TODO: Implement closing of window with variable
-                    this._startElectron();
-                } else {
-                    process.exit(code);
-                    reject(code);
-                }
+                electron_proc.once('exit', (code, signal) => {
+                    watcher.close();
+                    if (signal === 'SIGTERM') {
+                        console.log(chalk `{rgb(255,128,0) Changes detected!} {green Restarting Electron...}`);
+                        // TODO: Implement closing of window with variable
+                        this._startElectron();
+                    } else {
+                        process.exit(code);
+                        if (code === 0)
+                            resolve(code);
+                        else
+                            reject(code);
+                    }
+                });
             });
         });
     }
