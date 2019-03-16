@@ -32,9 +32,10 @@ class Build {
             },
             files: [
                 '**/*',
-                'app/**/*',
-                '!**/electron/**/*',
-                '!**/node_modules/**/*',
+                // 'app/**/*',
+                // 'electron/**/*',
+                '!**/env/**/*',
+                // '!**/node_modules/**/*',
                 '!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}',
                 '!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}',
                 '!**/node_modules/*.d.ts',
@@ -54,6 +55,7 @@ class Build {
                         target: 'nsis',
                         arch: [
                             'x64',
+                            // 'ia32'
                         ]
                     },
                 ],
@@ -139,36 +141,42 @@ class Build {
                     const env_dev_src = path.join(process.cwd(), 'electron', 'env', 'environment.dev.js');
                     const env_prod_src = path.join(process.cwd(), 'electron', 'env', 'environment.prod.js');
                     const env_dest = path.join(process.cwd(), 'electron', 'environment.js');
-                    // 1. ng build --configuration=production
+                    // Remove old compiled angular
                     fs.remove(ng_src).then(() => {
+                        // Remove old prepacked javascript
                         fs.remove(path.join(process.cwd(), 'dist')).then(() => {
+                            // 1. ng build --configuration=production
                             this.buildAngular().then(() => {
                                 // 2. copy everything to a folder
                                 console.log(`Moving from ${ng_src} to ${ng_dest}`);
                                 fs.move(ng_src, ng_dest).then(arr => {
                                     console.log(`Copying from ${el_src} to ${el_dest}`);
                                     fs.copy(el_src, el_dest).then(arr => {
-                                        console.log(`Copying ${env_prod_src} to ${env_dest}`);
-                                        fs.copy(env_prod_src, env_dest).then(() => {
-                                            webpack({
-                                                target: 'node',
-                                                entry: path.join(el_src, 'main.js'),
-                                                output: {
-                                                    path: el_dest,
-                                                    filename: 'main.js'
-                                                },
-                                            }).run(arr => {
-                                                console.log(`Copying back ${env_prod_src} to ${env_dest}`);
-                                                fs.copy(env_dev_src, env_dest).then(() => {
-                                                    // 3. package the folder
-                                                    fs.remove(path.join(el_dest, 'env')).then(() => {
-                                                        this.build().then(arr => {
-                                                            console.log(chalk `{rgb(128,255,128) Your app was build successuly!}`);
-                                                            // 4. remove temp files
-                                                            resolve();
-                                                        });
-                                                    });
+                                        console.log(`Removing ${path.join(el_dest, 'env')}`);
+                                        fs.remove(path.join(el_dest, 'env')).then(() => {
+                                            console.log(`Copying ${env_prod_src} to ${env_dest}`);
+                                            fs.copy(env_prod_src, env_dest).then(() => {
+                                                // 3. package the folder
+                                                console.log('Building with electron-build...');
+                                                this.build().then(arr => {
+                                                    console.log(chalk `{rgb(128,255,128) Your app was build successuly!}`);
+                                                    // 4. ask to remove temp files
+                                                    resolve();
                                                 });
+                                                // webpack({
+                                                //     target: 'node',
+                                                //     entry: path.join(el_src, 'main.js'),
+                                                //     output: {
+                                                //         path: el_dest,
+                                                //         filename: 'main.js'
+                                                //     },
+                                                // }).run(arr => {
+                                                //     console.log(`Copying back ${env_prod_src} to ${env_dest}`);
+                                                //     fs.copy(env_dev_src, env_dest).then(() => {
+                                                //         fs.remove(path.join(el_dest, 'env')).then(() => {
+                                                //         });
+                                                //     });
+                                                // });
                                             });
                                         });
                                     });
