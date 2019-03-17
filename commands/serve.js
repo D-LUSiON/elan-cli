@@ -96,6 +96,7 @@ class Serve {
                     if (this.electron_changed_timeout)
                         clearTimeout(this.electron_changed_timeout);
                     this.electron_changed_timeout = setTimeout(() => {
+                        // FIXME: Process does not really exit and remain in memory
                         electron_proc.kill('SIGTERM');
                     }, 250);
                 });
@@ -113,6 +114,8 @@ class Serve {
                         // TODO: Implement closing of window with variable
                         this._startElectron();
                     } else {
+                        if (electron_proc)
+                            electron_proc.kill('SIGINT')
                         process.exit(code);
                         if (code === 0)
                             resolve(code);
