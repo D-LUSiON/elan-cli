@@ -125,7 +125,7 @@ class Build {
         this.electroBuilderJson = {
             targets: Platform.WINDOWS.createTarget(),
             config: {
-                ...this.electroBuilderJsonDefault
+                ...this.electroBuilderJsonDefault,
             }
         };
     }
@@ -133,60 +133,56 @@ class Build {
     entry() {
         return new Promise((resolve, reject) => {
             this.startAskingQuestions().then(answers => {
-                if (answers.build) {
-                    const ng_src = path.join(process.cwd(), 'tmp');
-                    const ng_dest = path.join(process.cwd(), this.prebuild_folder_name, 'app');
-                    const el_src = path.join(process.cwd(), 'electron');
-                    const el_dest = path.join(process.cwd(), this.prebuild_folder_name);
-                    const env_dev_src = path.join(process.cwd(), 'electron', 'env', 'environment.dev.js');
-                    const env_prod_src = path.join(process.cwd(), 'electron', 'env', 'environment.prod.js');
-                    const env_dest = path.join(process.cwd(), 'electron', 'environment.js');
-                    // Remove old compiled angular
-                    fs.remove(ng_src).then(() => {
-                        // Remove old prepacked javascript
-                        fs.remove(path.join(process.cwd(), 'dist')).then(() => {
-                            // 1. ng build --configuration=production
-                            this.buildAngular().then(() => {
-                                // 2. copy everything to a folder
-                                console.log(`Moving from ${ng_src} to ${ng_dest}`);
-                                fs.move(ng_src, ng_dest).then(arr => {
-                                    console.log(`Copying from ${el_src} to ${el_dest}`);
-                                    fs.copy(el_src, el_dest).then(arr => {
-                                        console.log(`Removing ${path.join(el_dest, 'env')}`);
-                                        fs.remove(path.join(el_dest, 'env')).then(() => {
-                                            console.log(`Copying ${env_prod_src} to ${env_dest}`);
-                                            fs.copy(env_prod_src, env_dest).then(() => {
-                                                // 3. package the folder
-                                                console.log('Building with electron-build...');
-                                                this.build().then(arr => {
-                                                    console.log(chalk `{rgb(128,255,128) Your app was build successuly!}`);
-                                                    // 4. ask to remove temp files
-                                                    resolve();
-                                                });
-                                                // webpack({
-                                                //     target: 'node',
-                                                //     entry: path.join(el_src, 'main.js'),
-                                                //     output: {
-                                                //         path: el_dest,
-                                                //         filename: 'main.js'
-                                                //     },
-                                                // }).run(arr => {
-                                                //     console.log(`Copying back ${env_prod_src} to ${env_dest}`);
-                                                //     fs.copy(env_dev_src, env_dest).then(() => {
-                                                //         fs.remove(path.join(el_dest, 'env')).then(() => {
-                                                //         });
-                                                //     });
-                                                // });
+                const ng_src = path.join(process.cwd(), 'tmp');
+                const ng_dest = path.join(process.cwd(), this.prebuild_folder_name, 'app');
+                const el_src = path.join(process.cwd(), 'electron');
+                const el_dest = path.join(process.cwd(), this.prebuild_folder_name);
+                const env_dev_src = path.join(process.cwd(), 'electron', 'env', 'environment.dev.js');
+                const env_prod_src = path.join(process.cwd(), 'electron', 'env', 'environment.prod.js');
+                const env_dest = path.join(process.cwd(), 'electron', 'environment.js');
+                // Remove old compiled angular
+                fs.remove(ng_src).then(() => {
+                    // Remove old prepacked javascript
+                    fs.remove(path.join(process.cwd(), 'dist')).then(() => {
+                        // 1. ng build --configuration=production
+                        this.buildAngular().then(() => {
+                            // 2. copy everything to a folder
+                            console.log(`Moving from ${ng_src} to ${ng_dest}`);
+                            fs.move(ng_src, ng_dest).then(arr => {
+                                console.log(`Copying from ${el_src} to ${el_dest}`);
+                                fs.copy(el_src, el_dest).then(arr => {
+                                    console.log(`Removing ${path.join(el_dest, 'env')}`);
+                                    fs.remove(path.join(el_dest, 'env')).then(() => {
+                                        console.log(`Copying ${env_prod_src} to ${env_dest}`);
+                                        fs.copy(env_prod_src, env_dest).then(() => {
+                                            // 3. package the folder
+                                            console.log('Building with electron-build...');
+                                            this.build().then(arr => {
+                                                console.log(chalk `{rgb(128,255,128) Your app was build successuly!}`);
+                                                // 4. ask to remove temp files
+                                                resolve();
                                             });
+                                            // webpack({
+                                            //     target: 'node',
+                                            //     entry: path.join(el_src, 'main.js'),
+                                            //     output: {
+                                            //         path: el_dest,
+                                            //         filename: 'main.js'
+                                            //     },
+                                            // }).run(arr => {
+                                            //     console.log(`Copying back ${env_prod_src} to ${env_dest}`);
+                                            //     fs.copy(env_dev_src, env_dest).then(() => {
+                                            //         fs.remove(path.join(el_dest, 'env')).then(() => {
+                                            //         });
+                                            //     });
+                                            // });
                                         });
                                     });
                                 });
                             });
                         });
                     });
-                } else {
-                    resolve();
-                }
+                });
             });
         });
     }
@@ -195,10 +191,11 @@ class Build {
         return new Promise(resolve => {
             inquirer.prompt([{
                 type: 'confirm',
-                name: 'build',
-                message: `Do you want to build ${packageJson.productName}?`,
+                name: 'asar',
+                message: `Do you want to use ASAR while building ${packageJson.productName}?`,
                 default: true
             }]).then((answers) => {
+                this.electroBuilderJson.config.asar = answers.asar;
                 resolve(answers);
             });
         });
