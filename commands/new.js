@@ -26,14 +26,23 @@ class New {
         return new Promise((resolve, reject) => {
             if (!fs.existsSync(path.join(process.cwd(), this.args._[1]))) {
                 this.startAskingQuestions().then(() => {
-                    console.log(chalk `\n{green Alright, everithing's set! Creating Angular project....}\n`);
+                    console.log(chalk `\n{green Alright, everithing's set! Let's do some work at last...}\n`);
                     this.initElectron().then(() => {
                         this.initAngular().then(() => {
                             this.installElectron().then(() => {
                                 this.installAngular().then(() => {
-                                    // TODO: Commit "initial commit"
-                                    console.log(chalk `\n{rgb(255,128,0) Everything's ready to go!}\n\nWrite {green cd ${this.package_json_options.name}} in your console and start the project with {green elan serve}!`);
-                                    resolve();
+                                    if (!this.angular_options.createApplication) {
+                                        console.log(chalk `\n{rgb(255,128,0) You choose not to create initial Angular application}\n\n{green In order your project to work correctly, you MUST create one}\n`);
+                                        this.createNewApplication().then(arr => {
+                                            // TODO: Commit "initial commit"
+                                            console.log(chalk `\n{rgb(255,128,0) Everything's ready to go!}\n\nWrite {green cd ${this.package_json_options.name}} in your console and start the project with {green elan serve}!`);
+                                            resolve();
+                                        });
+                                    } else {
+                                        // TODO: Commit "initial commit"
+                                        console.log(chalk `\n{rgb(255,128,0) Everything's ready to go!}\n\nWrite {green cd ${this.package_json_options.name}} in your console and start the project with {green elan serve}!`);
+                                        resolve();
+                                    }
                                 }).catch((err) => {
                                     reject(err);
                                 });
@@ -64,7 +73,7 @@ class New {
                     message: 'What name would you like to use for the project?',
                     default: this.args._[1] || '',
                     validate: (answer) => {
-                        return !answer.match(/\d/g) ? true : 'Name must contain only letters and dashes! Example: my-awesome-app-one (not "my-awesome-app-1")';
+                        return (answer && !answer.match(/\d/g) ? true : 'Name must contain only letters and dashes! Example: my-awesome-app-one (not "my-awesome-app-1")');
                     }
                 },
                 {
@@ -107,34 +116,196 @@ class New {
                     ...general_answers
                 };
                 inquirer.prompt([{
-                        type: 'confirm',
-                        name: 'routing',
-                        message: 'Would you like to add Angular routing?',
-                        default: true
-                    },
-                    {
-                        type: 'list',
-                        name: 'style',
-                        message: 'Which stylesheet format would you like to use?',
-                        choices: ['CSS', 'SCSS', 'SASS', 'LESS', 'Stylus']
+                        type: 'input',
+                        name: 'directory',
+                        message: 'What folder do you want to create application in?',
+                        default: this.args._[1] || this.package_json_options.name
                     },
                     {
                         type: 'input',
-                        name: 'prefix',
-                        message: 'What prefix do you want to use in Angular?',
-                        default: 'app'
+                        name: 'newProjectRoot',
+                        message: 'The path where new projects will be created, relative to the new workspace root.',
+                        default: 'projects'
                     },
                     {
                         type: 'confirm',
-                        name: 'skipTests',
-                        message: 'Skip tests in Angular?',
+                        name: 'skipGit',
+                        message: 'Do you want to skip initialization of Git repository?',
                         default: false
                     },
+                    {
+                        type: 'confirm',
+                        name: 'createApplication',
+                        message: 'Do you want to create initial application in Angular?',
+                        default: true
+                    },
                 ]).then(angular_answers => {
-                    this.angular_options = {
-                        ...this.angular_options,
-                        ...angular_answers
-                    };
+                    if (angular_answers.createApplication) {
+                        inquirer.prompt([
+                            {
+                                type: 'confirm',
+                                name: 'routing',
+                                message: 'Would you like to add Angular routing?',
+                                default: true
+                            },
+                            {
+                                type: 'input',
+                                name: 'prefix',
+                                message: 'What prefix do you want to use in Angular?',
+                                default: 'app'
+                            },
+                            {
+                                type: 'list',
+                                name: 'style',
+                                message: 'Which stylesheet format would you like to use?',
+                                choices: ['CSS', 'SCSS', 'SASS', 'LESS', 'Stylus']
+                            },
+                            {
+                                type: 'confirm',
+                                name: 'skipTests',
+                                message: 'Do you want to skip generation of "spec.ts" test files for the new project?',
+                                default: false
+                            },
+                            {
+                                type: 'confirm',
+                                name: 'minimal',
+                                message: 'Do you want to skip adding testing frameworks?',
+                                default: false
+                            },
+                        ]).then(more_angular_answers => {
+                            this.angular_options = {
+                                ...this.angular_options,
+                                ...angular_answers,
+                                ...more_angular_answers,
+                            };
+                            resolve();
+                        });
+                    } else {
+                        this.angular_options = {
+                            ...this.angular_options,
+                            ...angular_answers
+                        };
+                        resolve();
+                    }
+                });
+            });
+        });
+    }
+
+    createNewApplication() {
+        return new Promise((resolve, reject) => {
+            inquirer.prompt([{
+                    type: 'input',
+                    name: 'name',
+                    message: 'What name would you like to use for the application?',
+                    default: this.args._[1] || '',
+                    validate: (answer) => {
+                        return (answer && !answer.match(/\d/g)) ? true : 'Name must contain only letters and dashes! Example: my-awesome-app-one (not "my-awesome-app-1")';
+                    }
+                },
+                {
+                    type: 'input',
+                    name: 'prefix',
+                    message: 'What prefix do you want to use in your app?',
+                    default: 'app'
+                },
+                {
+                    type: 'confirm',
+                    name: 'routing',
+                    message: 'Would you like to add Angular routing?',
+                    default: true
+                },
+                {
+                    type: 'list',
+                    name: 'style',
+                    message: 'Which stylesheet format would you like to use?',
+                    choices: ['CSS', 'SCSS', 'SASS', 'LESS', 'Stylus']
+                },
+                {
+                    type: 'confirm',
+                    name: 'inlineStyle',
+                    message: 'Do you want to use inline styles?',
+                    default: false
+                },
+                {
+                    type: 'confirm',
+                    name: 'inlineTemplate',
+                    message: 'Do you want to use inline templates?',
+                    default: false
+                },
+                {
+                    type: 'confirm',
+                    name: 'skipPackageJson',
+                    message: 'Do you want to skip adding dependancies to the "package.json"?',
+                    default: false
+                },
+                {
+                    type: 'confirm',
+                    name: 'minimal',
+                    message: 'Do you want to skip adding testing frameworks?',
+                    default: false
+                },
+                {
+                    type: 'confirm',
+                    name: 'skipTests',
+                    message: 'Do you want to skip generation of "spec.ts" test files for the new project?',
+                    default: false
+                },
+                {
+                    type: 'confirm',
+                    name: 'lintFix',
+                    message: 'Do you want to apply lint fixes after generating the application?',
+                    default: false
+                },
+            ]).then(angular_answers => {
+                const ng_new = spawn('node', [
+                    path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'bin', 'ng'),
+                    'generate',
+                    'application',
+                    angular_answers.name,
+                    ...Object.keys(angular_answers).map(key => `--${key}=${typeof angular_answers[key] === 'string' ? angular_answers[key].toLowerCase() : angular_answers[key].toString()}`)
+                ], {
+                    cwd: path.join(process.cwd(), this.angular_options.directory),
+                    stdio: ['inherit', 'inherit', 'inherit']
+                });
+
+                ng_new.once('exit', (code, signal) => {
+                    if (code === 0) {
+                        this._modifyPackages().then(() => {
+                            ncp(
+                                path.join(__dirname, '..', 'assets', 'src'),
+                                path.join(process.cwd(), this.package_json_options.name, this.angular_options.newProjectRoot, angular_answers.name, 'src'),
+                                () => {
+                                    this.addElectronEnvironment(angular_answers.name).then(() => {
+                                        console.log(chalk `{green Angular project created!}`);
+                                        resolve();
+                                    });
+                                });
+                        });
+                    } else {
+                        process.exit(code);
+                    }
+                });
+            });
+        });
+    }
+
+    addElectronEnvironment(app_name) {
+        return new Promise((resolve, reject) => {
+            const source_dev = path.join(process.cwd(), this.angular_options.directory, 'electron', 'env', 'environment.dev.js');
+            const target_dev = path.join(process.cwd(), this.angular_options.directory, 'electron', 'env', `environment.${app_name}.dev.js`);
+
+            let env_dev = fs.readFileSync(source_dev, 'utf8');
+            env_dev = env_dev.replace(/html_src\:\s\'(?:.+?)\'\,/i, `html_src: 'app-${app_name}',`);
+
+            const source_prod = path.join(process.cwd(), this.angular_options.directory, 'electron', 'env', 'environment.prod.js');
+            const target_prod = path.join(process.cwd(), this.angular_options.directory, 'electron', 'env', `environment.${app_name}.prod.js`);
+
+            let env_prod = fs.readFileSync(source_prod, 'utf8');
+            env_prod = env_prod.replace(/html_src\:\s\'(?:.+?)\'\,/i, `html_src: 'app-${app_name}',`);
+            
+            fs.writeFile(target_dev, env_dev, 'utf8', () => {
+                fs.writeFile(target_prod, env_prod, 'utf8', () => {
                     resolve();
                 });
             });
@@ -146,13 +317,13 @@ class New {
             const ng_new = spawn('node', [
                 path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'bin', 'ng'),
                 'new',
-                this.package_json_options.name,
+                this.angular_options.name,
                 '--skipInstall=true',
                 '--commit=false',
                 '--interactive=false',
-                ...Object.keys(this.angular_options).map(key => `--${key}=${typeof this.angular_options[key] === 'string' ? this.angular_options[key].toLowerCase() : this.angular_options[key]}`)
+                ...Object.keys(this.angular_options).map(key => `--${key}=${typeof this.angular_options[key] === 'string' ? this.angular_options[key].toLowerCase() : this.angular_options[key].toString()}`)
             ], {
-                stdio: [process.stdin, process.stdout, process.stderr]
+                stdio: ['inherit', 'inherit', 'inherit']
             });
 
             ng_new.once('exit', (code, signal) => {
@@ -171,33 +342,51 @@ class New {
     _modifyAngularJSON() {
         return new Promise((resolve, reject) => {
             // Add "dev" config to angular.json
-            const path_to_angular_json = path.join(process.cwd(), this.package_json_options.name, 'angular.json');
+            const path_to_angular_json = path.join(process.cwd(), this.angular_options.directory, 'angular.json');
+
+            delete require.cache[require.resolve(path_to_angular_json)];
             let angular_json = require(path_to_angular_json);
+
             const dev_options = {
-                "dev": {
-                    "baseHref": "",
-                    "outputPath": "./app",
-                    "deleteOutputPath": false,
-                    "optimization": false,
-                    "outputHashing": "media",
-                    "sourceMap": true,
-                    "extractCss": false,
-                    "namedChunks": true,
-                    "aot": false,
-                    "extractLicenses": false,
-                    "vendorChunk": true,
-                    "buildOptimizer": false,
-                    "fileReplacements": [{
-                        "replace": "src/environments/environment.ts",
-                        "with": "src/environments/environment.dev.ts"
+                dev: {
+                    baseHref: '',
+                    outputPath: './app',
+                    deleteOutputPath: false,
+                    optimization: false,
+                    outputHashing: 'media',
+                    sourceMap: true,
+                    extractCss: false,
+                    namedChunks: true,
+                    aot: false,
+                    extractLicenses: false,
+                    vendorChunk: true,
+                    buildOptimizer: false,
+                    fileReplacements: [{
+                        replace: 'src/environments/environment.ts',
+                        with: 'src/environments/environment.dev.ts'
                     }]
                 },
             };
 
-            angular_json.projects[this.package_json_options.name].architect.build.configurations = {
-                ...dev_options,
-                ...angular_json.projects[this.package_json_options.name].architect.build.configurations
-            }
+            Object.keys(angular_json.projects).forEach(project_name => {
+                const dev_options_copy = {
+                    ...dev_options
+                };
+                dev_options_copy.dev.outputPath = `./app-${project_name}`;
+                dev_options_copy.dev.fileReplacements = [{
+                    replace: `${angular_json.newProjectRoot}/${project_name}/src/environments/environment.ts`,
+                    with: `${angular_json.newProjectRoot}/${project_name}/src/environments/environment.dev.ts`
+                }];
+                if (
+                    angular_json.projects[project_name].architect &&
+                    angular_json.projects[project_name].architect.build &&
+                    angular_json.projects[project_name].architect.build.configurations
+                )
+                    angular_json.projects[project_name].architect.build.configurations = {
+                        ...dev_options_copy,
+                        ...angular_json.projects[project_name].architect.build.configurations
+                    }
+            });
 
             fs.writeFile(path_to_angular_json, JSON.stringify(angular_json, null, 2), 'utf8', () => {
                 resolve();
@@ -214,8 +403,6 @@ class New {
 
     _modifyPackageJSON() {
         return new Promise((resolve, reject) => {
-            this._modifyAngularJSON();
-
             // Modify ./package.json
             const path_to_package_json = path.join(process.cwd(), this.package_json_options.name, 'package.json');
             let package_json = require(path_to_package_json);
@@ -279,12 +466,18 @@ class New {
             this._modifyAngularJSON(),
             this._modifyPackageJSON(),
             this._modifyElectronPackageJSON(),
+            this._modifyGitIgnore(),
         ]);
     }
 
     initElectron() {
         return new Promise((resolve, reject) => {
-            ncp(path.join(__dirname, '..', 'assets'), path.join(process.cwd(), this.package_json_options.name), () => {
+            let ncp_options = {};
+            if (!this.angular_options.createApplication)
+                ncp_options = {
+                    filter: (file) => !file.startsWith(path.join(__dirname, '..', 'assets', 'src'))
+                }
+            ncp(path.join(__dirname, '..', 'assets'), path.join(process.cwd(), this.package_json_options.name), ncp_options, () => {
                 console.log(chalk `{green Electron files created!}`);
                 resolve();
             });

@@ -7,11 +7,14 @@ const chokidar = require('chokidar');
 class Serve {
     constructor(args) {
         this.description = 'Starts a development server';
-        this.usage = '$ elan serve [options]';
+        this.usage = '$ elan serve [,project] [options]';
         this.options = [];
         this.args = args;
         this.local_package_json = {};
         this.electron_changed_timeout = null;
+        this.angular_json = require(path.join(process.cwd(), 'angular.json'));
+        this.run_project = this.args._[1] || this.angular_json.defaultProject;
+        console.log(chalk `{rgb(255,128,0) Start serving project "${this.run_project}}"...\n`);
     }
 
     entry() {
@@ -31,7 +34,6 @@ class Serve {
                         });
                     }
                 });
-
             }).catch((err) => {
                 reject(err);
             });
@@ -51,7 +53,7 @@ class Serve {
 
     _checkIsAngularPrebuild() {
         return new Promise((resolve) => {
-            fs.readdir(path.join(process.cwd(), 'app'), (err, files) => {
+            fs.readdir(path.join(process.cwd(), `app-${this.run_project}`), (err, files) => {
                 resolve(!!(files && files.length));
             });
         });
@@ -63,6 +65,7 @@ class Serve {
             const ng_build = spawn('node', [
                 path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng'),
                 'build',
+                this.run_project,
                 '--configuration=dev',
                 '--delete-output-path=true',
             ], {
@@ -81,11 +84,15 @@ class Serve {
 
     _startElectron() {
         return new Promise((resolve, reject) => {
-            fs.copy(path.join(process.cwd(), 'electron', 'env', 'environment.dev.js'), path.join(process.cwd(), 'electron', 'environment.js')).then(() => {
+            let source = (this.run_project) ? path.join(process.cwd(), 'electron', 'env', `environment.${this.run_project}.dev.js`) : path.join(process.cwd(), 'electron', 'env', 'environment.dev.js');
+            if (!fs.existsSync(source))
+                source = path.join(process.cwd(), 'electron', 'env', 'environment.dev.js');
+
+            fs.copy(source, path.join(process.cwd(), 'electron', 'environment.js')).then(() => {
                 // FIXME: Make Angular to hot reload only the window, not the entire application
                 const watcher = chokidar.watch([
                     path.join(process.cwd(), 'electron'),
-                    path.join(process.cwd(), 'app')
+                    path.join(process.cwd(), `app-${this.run_project}`)
                 ], {
                     ignored: /node_modules|[\/\\]\./,
                     persistent: true,
@@ -132,6 +139,7 @@ class Serve {
             const ng_build = spawn('node', [
                 path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng'),
                 'build',
+                this.run_project,
                 '--watch',
                 '--configuration=dev',
                 '--delete-output-path=false',
