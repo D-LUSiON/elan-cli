@@ -50,7 +50,7 @@ class Build {
             ],
             asar: false,
             win: {
-                icon: fs.existsSync(path.join(process.cwd), 'src', 'assets', 'app-icon.ico') ? 'src/assets/app-icon.ico' : '',
+                icon: fs.existsSync(path.join(process.cwd(), 'src', 'assets', 'app-icon.ico')) ? 'src/assets/app-icon.ico' : '',
                 target: [
                     {
                         target: 'nsis',
