@@ -12,11 +12,15 @@ const Platform = builder.Platform;
 const packageJson = require(path.join(process.cwd(), 'package.json'));
 
 class Build {
-    constructor() {
+    constructor(args) {
         this.description = 'Starts build process';
-        this.usage = '$ elan build [options]';
+        this.usage = '$ elan build [,project]  [options]';
         this.options = [];
-        this.prebuild_folder_name = 'dist';
+        this.args = args;
+        this.local_package_json = {};
+        this.angular_json = require(path.join(process.cwd(), 'angular.json'));
+        this.build_project = this.args._[1] || this.angular_json.defaultProject;
+        this.prebuild_folder_name = `dist-${this.build_project}`;
 
         this.electroBuilderJsonDefault = {
             // publish: [{
@@ -28,7 +32,7 @@ class Build {
             directories: {
                 buildResources: 'resources',
                 app: this.prebuild_folder_name,
-                output: 'release'
+                output: `release/${this.build_project}` + '-${version}-${os}-${arch}'
             },
             files: [
                 '**/*',
@@ -50,7 +54,7 @@ class Build {
             ],
             asar: false,
             win: {
-                icon: fs.existsSync(path.join(process.cwd(), 'src', 'assets', 'app-icon.ico')) ? 'src/assets/app-icon.ico' : '',
+                icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico') : '',
                 target: [
                     {
                         target: 'nsis',
@@ -75,29 +79,30 @@ class Build {
             // deb: {
             //     synopsis: ''
             // },
-            // linux: {
-            //     category: '',
-            //     target: [
-            //         'deb',
-            //         'tar.gz',
-            //         'appimage'
-            //     ],
-            //     extraFiles: [{
-            //             filter: [
-            //                 'LICENSE.txt',
-            //                 'NOTICE.txt'
-            //             ]
-            //         },
-            //         {
-            //             from: 'resources/linux',
-            //             filter: [
-            //                 'create_desktop_file.sh',
-            //                 'icon.svg',
-            //                 'README.md'
-            //             ]
-            //         }
-            //     ]
-            // },
+            linux: {
+                icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico') : '',
+                category: '',
+                target: [
+                    'deb',
+                    'tar.gz',
+                    'appimage'
+                ],
+                // extraFiles: [{
+                //         filter: [
+                //             'LICENSE.txt',
+                //             'NOTICE.txt'
+                //         ]
+                //     },
+                //     {
+                //         from: 'resources/linux',
+                //         filter: [
+                //             'create_desktop_file.sh',
+                //             'icon.svg',
+                //             'README.md'
+                //         ]
+                //     }
+                // ]
+            },
             // mac: {
             //     category: '',
             //     target: [
@@ -138,13 +143,13 @@ class Build {
                 const ng_dest = path.join(process.cwd(), this.prebuild_folder_name, 'app');
                 const el_src = path.join(process.cwd(), 'electron');
                 const el_dest = path.join(process.cwd(), this.prebuild_folder_name);
-                const env_dev_src = path.join(process.cwd(), 'electron', 'env', 'environment.dev.js');
-                const env_prod_src = path.join(process.cwd(), 'electron', 'env', 'environment.prod.js');
+                const env_dev_src = fs.existsSync(path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.dev.js`)) ? path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.dev.js`) : path.join(process.cwd(), 'electron', 'env', 'environment.dev.js');
+                const env_prod_src = fs.existsSync(path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.prod.js`)) ? path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.prod.js`) : path.join(process.cwd(), 'electron', 'env', 'environment.dev.js');
                 const env_dest = path.join(process.cwd(), 'electron', 'environment.js');
                 // Remove old compiled angular
                 fs.remove(ng_src).then(() => {
                     // Remove old prepacked javascript
-                    fs.remove(path.join(process.cwd(), 'dist')).then(() => {
+                    fs.remove(path.join(process.cwd(), this.prebuild_folder_name)).then(() => {
                         // 1. ng build --configuration=production
                         this.buildAngular().then(() => {
                             // 2. copy everything to a folder
@@ -208,6 +213,7 @@ class Build {
             const ng_build = spawn('node', [
                 path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'bin', 'ng'),
                 'build',
+                this.build_project,
                 '--configuration=production',
                 `--output-path=./tmp`,
                 `--base-href=`,
