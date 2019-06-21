@@ -53,23 +53,7 @@ class Build {
                 '!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}'
             ],
             asar: false,
-            win: {
-                icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico') : '',
-                target: [
-                    {
-                        target: 'nsis',
-                        arch: [
-                            'x64',
-                            // 'ia32'
-                        ]
-                    },
-                ],
-            },
-            nsis: {
-                oneClick: false,
-                allowToChangeInstallationDirectory: true,
-                artifactName: '${name}-setup-${version}-win.${ext}'
-            },
+
             // protocols: [{
             //     name: '',
             //     schemes: [
@@ -79,6 +63,33 @@ class Build {
             // deb: {
             //     synopsis: ''
             // },
+
+
+            // squirrelWindows: {
+            //     iconUrl: 'file://resources/icon.ico',
+            //     artifactName: '${name}-setup-${version}-${arch}.${ext}'
+            // },
+        };
+
+        this.win32_options = {
+            win: {
+                icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico') : '',
+                target: [{
+                    target: 'nsis',
+                    arch: [
+                        'x64',
+                        // 'ia32'
+                    ]
+                }, ],
+            },
+            nsis: {
+                oneClick: false,
+                allowToChangeInstallationDirectory: true,
+                artifactName: '${name}-setup-${version}-win.${ext}'
+            },
+        };
+
+        this.linux_options = {
             linux: {
                 icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico') : '',
                 category: '',
@@ -103,30 +114,29 @@ class Build {
                 //     }
                 // ]
             },
-            // mac: {
-            //     category: '',
-            //     target: [
-            //         'zip',
-            //         'dmg'
-            //     ],
-            //     darkModeSupport: true,
-            //     extraResources: [{
-            //         filter: [
-            //             'LICENSE.txt',
-            //             'NOTICE.txt'
-            //         ]
-            //     }]
-            // },
-            // dmg: {
-            //     background: 'resources/osx/DMG_BG.png',
-            //     iconSize: 140,
-            //     iconTextSize: 18
-            // },
-            // squirrelWindows: {
-            //     iconUrl: 'file://resources/icon.ico',
-            //     artifactName: '${name}-setup-${version}-${arch}.${ext}'
-            // },
         };
+
+        this.macOs_options = {
+            mac: {
+                category: '',
+                target: [
+                    'zip',
+                    'dmg'
+                ],
+                darkModeSupport: true,
+                extraResources: [{
+                    filter: [
+                        'LICENSE.txt',
+                        'NOTICE.txt'
+                    ]
+                }]
+            },
+            dmg: {
+                background: 'resources/osx/DMG_BG.png',
+                iconSize: 140,
+                iconTextSize: 18
+            },
+        }
 
         this.electroBuilderJson = {
             targets: Platform.WINDOWS.createTarget(),
@@ -196,12 +206,50 @@ class Build {
     startAskingQuestions() {
         return new Promise(resolve => {
             inquirer.prompt([{
-                type: 'confirm',
-                name: 'asar',
-                message: `Do you want to use ASAR while building ${packageJson.productName}?`,
-                default: true
-            }]).then((answers) => {
+                    type: 'confirm',
+                    name: 'asar',
+                    message: `Do you want to use ASAR while building ${packageJson.productName}?`,
+                    default: true
+                },
+                {
+                    type: 'list',
+                    name: 'os',
+                    message: 'Which platform do you want to build for?',
+                    choices: [
+                        'Windows',
+                        'Linux',
+                        'MacOs'
+                    ],
+                    default: 'Windows'
+                }
+            ]).then((answers) => {
                 this.electroBuilderJson.config.asar = answers.asar;
+                switch (answers.os) {
+                    case 'Windows':
+                        this.electroBuilderJson.targets = Platform.WINDOWS.createTarget();
+                        this.electroBuilderJson.config = {
+                            ...this.electroBuilderJson.config,
+                            ...this.win32_options
+                        };
+                        break;
+                    case 'Linux':
+                        this.electroBuilderJson.targets = Platform.LINUX.createTarget();
+                        this.electroBuilderJson.config = {
+                            ...this.electroBuilderJson.config,
+                            ...this.linux_options
+                        };
+                        break;
+                    case 'macOs':
+                        this.electroBuilderJson.targets = Platform.MAC.createTarget();
+                        this.electroBuilderJson.config = {
+                            ...this.electroBuilderJson.config,
+                            ...this.macOs_options
+                        };
+                        break;
+
+                    default:
+                        break;
+                }
                 resolve(answers);
             });
         });
