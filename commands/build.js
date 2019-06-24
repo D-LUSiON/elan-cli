@@ -27,8 +27,9 @@ class Build {
             //     provider: 'generic',
             //     url: ''
             // }],
-            // appId: '',
-            artifactName: '${name}-${version}-${os}-${arch}.${ext}',
+            // appId: 'com.qms-bg.${productName}',
+            productName: this.build_project,
+            artifactName: '${productName}-${version}-${os}-${arch}.${ext}',
             directories: {
                 buildResources: 'resources',
                 app: this.prebuild_folder_name,
@@ -53,39 +54,39 @@ class Build {
                 '!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}'
             ],
             asar: false,
-
-            // protocols: [{
-            //     name: '',
-            //     schemes: [
-            //         ''
-            //     ]
-            // }],
-            // deb: {
-            //     synopsis: ''
-            // },
-
-
-            // squirrelWindows: {
-            //     iconUrl: 'file://resources/icon.ico',
-            //     artifactName: '${name}-setup-${version}-${arch}.${ext}'
-            // },
         };
 
         this.win32_options = {
             win: {
                 icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico') : '',
-                target: [{
-                    target: 'nsis',
-                    arch: [
-                        'x64',
-                        // 'ia32'
-                    ]
-                }, ],
+                target: [
+                    {
+                        target: 'nsis',
+                        arch: [
+                            'x64',
+                            // 'ia32'
+                        ]
+                    },
+                    {
+                        target: 'zip',
+                        arch: [
+                            'x64',
+                            // 'ia32'
+                        ]
+                    },
+                    {
+                        target: 'portable',
+                        arch: [
+                            'x64',
+                            // 'ia32'
+                        ]
+                    },
+                ],
             },
             nsis: {
                 oneClick: false,
                 allowToChangeInstallationDirectory: true,
-                artifactName: '${name}-setup-${version}-win.${ext}'
+                artifactName: '${productName}-setup-${version}-win.${ext}'
             },
         };
 
@@ -98,21 +99,6 @@ class Build {
                     'tar.gz',
                     'appimage'
                 ],
-                // extraFiles: [{
-                //         filter: [
-                //             'LICENSE.txt',
-                //             'NOTICE.txt'
-                //         ]
-                //     },
-                //     {
-                //         from: 'resources/linux',
-                //         filter: [
-                //             'create_desktop_file.sh',
-                //             'icon.svg',
-                //             'README.md'
-                //         ]
-                //     }
-                // ]
             },
         };
 
