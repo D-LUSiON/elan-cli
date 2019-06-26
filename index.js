@@ -76,8 +76,8 @@ if (!fileOps.checkDir(path.join(__dirname, 'commands', `${argv._[0]}.js`))) {
 
     process.exit(1);
 } else {
-    const commandController = require(path.join(__dirname, 'commands', `${argv._[0]}.js`));
-    const comm = new commandController(argv);
+    const CommandController = require(path.join(__dirname, 'commands', `${argv._[0]}.js`));
+    const comm = new CommandController(argv);
 
     comm.entry().then(() => {
         process.exit(0);

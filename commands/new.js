@@ -73,7 +73,7 @@ class New {
                     message: 'What name would you like to use for the project?',
                     default: this.args._[1] || '',
                     validate: (answer) => {
-                        return (answer && !answer.match(/\d/g) ? true : 'Name must contain only letters and dashes! Example: my-awesome-app-one (not "my-awesome-app-1")');
+                        return (answer && !answer.match(/\d/g && answer !== 'app') ? true : 'Name must contain only letters and dashes! Example: my-awesome-app-one (not "my-awesome-app-1")');
                     }
                 },
                 {
@@ -121,12 +121,12 @@ class New {
                         message: 'What folder do you want to create application in?',
                         default: this.args._[1] || this.package_json_options.name
                     },
-                    {
-                        type: 'input',
-                        name: 'newProjectRoot',
-                        message: 'The path where new projects will be created, relative to the new workspace root.',
-                        default: 'projects'
-                    },
+                    // {
+                    //     type: 'input',
+                    //     name: 'newProjectRoot',
+                    //     message: 'The path where new projects will be created, relative to the new workspace root.',
+                    //     default: 'projects'
+                    // },
                     {
                         type: 'confirm',
                         name: 'skipGit',
@@ -258,11 +258,14 @@ class New {
                     default: false
                 },
             ]).then(angular_answers => {
+                const app_name = angular_answers.name;
+                delete angular_answers.name;
+                
                 const ng_new = spawn('node', [
                     path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'bin', 'ng'),
                     'generate',
                     'application',
-                    angular_answers.name,
+                    app_name,
                     ...Object.keys(angular_answers).map(key => `--${key}=${typeof angular_answers[key] === 'string' ? angular_answers[key].toLowerCase() : angular_answers[key].toString()}`)
                 ], {
                     cwd: path.join(process.cwd(), this.angular_options.directory),
@@ -325,6 +328,8 @@ class New {
             ], {
                 stdio: ['inherit', 'inherit', 'inherit']
             });
+
+            console.log({ ...Object.keys(this.angular_options).map(key => `--${key}=${typeof this.angular_options[key] === 'string' ? this.angular_options[key].toLowerCase() : this.angular_options[key].toString()}`) });
 
             ng_new.once('exit', (code, signal) => {
                 if (code === 0) {
@@ -416,8 +421,8 @@ class New {
             };
 
             this._getLatestDepsVersions().then(([electron_version, ngx_electron_version]) => {
+                package_json['dependencies']['ngx-electron'] = `^${ngx_electron_version}`;
                 package_json['devDependencies'].electron = `^${electron_version}`;
-                package_json['devDependencies']['ngx-electron'] = `^${ngx_electron_version}`;
 
                 const devDependencies = {};
 
