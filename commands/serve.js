@@ -69,7 +69,7 @@ class Serve {
                 '--configuration=dev',
                 '--delete-output-path=true',
             ], {
-                stdio: [process.stdin, process.stdout, process.stderr]
+                stdio: ['inherit', 'inherit', 'inherit']
             });
 
             ng_build.once('exit', (code, signal) => {
@@ -109,10 +109,16 @@ class Serve {
                 });
 
                 const electron_proc = spawn(path.join(process.cwd(), 'node_modules', 'electron', 'dist', 'electron.exe'), ['electron/.'], {
-                    stdio: [process.stdin, process.stdout, process.stderr]
+                    stdio: ['inherit', 'inherit', 'inherit']
                 }, {
                     cwd: path.join(process.cwd(), 'electron')
                 });
+
+                setTimeout(() => {
+                    const electron = require('electron');
+                    console.log(electron.remote);
+                }, 120000);
+
 
                 electron_proc.once('exit', (code, signal) => {
                     watcher.close();
@@ -144,7 +150,7 @@ class Serve {
                 '--configuration=dev',
                 '--delete-output-path=false',
             ], {
-                stdio: [process.stdin, process.stdout, process.stderr]
+                stdio: ['inherit', 'inherit', 'inherit']
             });
 
             ng_build.once('exit', (code, signal) => {

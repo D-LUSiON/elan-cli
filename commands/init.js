@@ -16,6 +16,7 @@ class Init {
         this.angular_options = {};
         this.electron_options = {};
         this.package_json_options = {};
+        console.log(this.args);
     }
 
     entry() {
@@ -163,7 +164,6 @@ class Init {
     initAngular() {
         return new Promise((resolve, reject) => {
             console.log(`Init Angular...`);
-            console.log({ ...Object.keys(this.elan_options.angular).map(key => `--${key}=${typeof this.elan_options.angular[key] === 'string' ? this.elan_options.angular[key].toLowerCase() : this.elan_options.angular[key].toString()}`) });
 
             const ng_new = spawn('node', [
                 path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'bin', 'ng'),
@@ -179,10 +179,14 @@ class Init {
 
             ng_new.once('exit', (code, signal) => {
                 if (code === 0) {
-                    console.log(chalk `{green Angular project created!}`);
-                    this._modifyAngularJSON().then(() => {
-                        resolve();
-                    });
+                    console.log(chalk.green `{green Angular project created!}`);
+
+                    this._modifyAngularJSON()
+                        .then(() => this._getAngularJson())
+                        .then(() => this._getPackageJson())
+                        .then(() => {
+                            resolve();
+                        });
                 } else {
                     process.exit(code);
                 }
@@ -193,7 +197,15 @@ class Init {
     copyElectronAssets() {
         return new Promise((resolve, reject) => {
             console.log(`Copying Electron assets...`);
-            resolve();
+            let ncp_options = {};
+            if (!this.angular_options.createApplication)
+                ncp_options = {
+                    filter: (file) => !file.startsWith(path.join(__dirname, '..', 'assets', 'src'))
+                }
+            ncp(path.join(__dirname, '..', 'assets'), path.join(process.cwd(), this.package_json_options.name), ncp_options, () => {
+                console.log(chalk `{green Electron files created!}`);
+                resolve();
+            });
         });
     }
 
@@ -229,7 +241,7 @@ class Init {
             console.log(`Stringified: ${JSON.stringify(this.elan_options, null, 2)}`);
             const path_to_elan_json = path.join(process.cwd(), this.elan_options.package.name, 'elan.json');
             console.log(`Elan.json path: ${path_to_elan_json}`);
-            
+
             fs.writeFile(path_to_elan_json, JSON.stringify(this.elan_options, null, 2), 'utf8', (err) => {
                 if (err) console.log(err);
                 resolve();
@@ -284,10 +296,35 @@ class Init {
     _modifyAngularJSON() {
         return new Promise((resolve, reject) => {
             console.log(`Adding "dev" config to angular.json...`);
-            
+
             // TODO: Add "dev" config to angular.json
-            
+
             resolve();
+        });
+    }
+
+    _modifyElectronPackageJSON() {
+        return new Promise((resolve, reject) => {
+            exec('npm view electron-window-state version', (err, stdout, stderr) => {
+                const result = stdout.replace(/\n/g, '');
+
+                const electron_package_options = {
+                    main: 'main.js',
+                    dependencies: {
+                        'electron-window-state': `^${result}`
+                    },
+                    devDependencies: {}
+                };
+
+                const path_to_package_json = path.join(process.cwd(), this.package_json_options.name, 'electron', 'package.json');
+
+                fs.writeFile(path_to_package_json, JSON.stringify({
+                    ...this.package_json_options,
+                    ...electron_package_options,
+                }, null, 2), 'utf8', () => {
+                    resolve();
+                });
+            });
         });
     }
 

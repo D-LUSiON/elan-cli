@@ -22,6 +22,11 @@ class Build {
         this.build_project = this.args._[1] || this.angular_json.defaultProject;
         this.prebuild_folder_name = `dist-${this.build_project}`;
 
+        this.electron_env = this.args['electron-prod'] ? 'prod' : 'dev';
+        this.angular_env = this.args['angular-prod'] ? 'production' : 'dev';
+
+        console.log(this.args);
+
         this.electroBuilderJsonDefault = {
             // publish: [{
             //     provider: 'generic',
@@ -92,12 +97,12 @@ class Build {
 
         this.linux_options = {
             linux: {
-                icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico') : '',
+                icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon-192x192.png')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon-192x192.png') : '',
                 category: '',
                 target: [
                     'deb',
                     'tar.gz',
-                    'appimage'
+                    // 'appimage'
                 ],
             },
         };
@@ -139,9 +144,11 @@ class Build {
                 const ng_dest = path.join(process.cwd(), this.prebuild_folder_name, 'app');
                 const el_src = path.join(process.cwd(), 'electron');
                 const el_dest = path.join(process.cwd(), this.prebuild_folder_name);
-                const env_dev_src = fs.existsSync(path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.dev.js`)) ? path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.dev.js`) : path.join(process.cwd(), 'electron', 'env', 'environment.dev.js');
-                const env_prod_src = fs.existsSync(path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.prod.js`)) ? path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.prod.js`) : path.join(process.cwd(), 'electron', 'env', 'environment.dev.js');
-                const env_dest = path.join(process.cwd(), 'electron', 'environment.js');
+                const electron_env = fs.existsSync(path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.${this.electron_env}.js`)) ? path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.${this.electron_env}.js`) : path.join(process.cwd(), 'electron', 'env', 'environment.prod.js');
+                const electron_env_dest = path.join(process.cwd(), 'electron', 'environment.js');
+
+                console.log(chalk `{rgb(255,128,0) Bundling Electron for ${this.electron_env === 'prod' ? 'production' : 'development'}...}`);
+
                 // Remove old compiled angular
                 fs.remove(ng_src).then(() => {
                     // Remove old prepacked javascript
@@ -150,16 +157,16 @@ class Build {
                         this.buildAngular().then(() => {
                             // 2. copy everything to a folder
                             console.log(`Moving from ${ng_src} to ${ng_dest}`);
-                            fs.move(ng_src, ng_dest).then(arr => {
+                            fs.move(ng_src, ng_dest).then(() => {
                                 console.log(`Copying from ${el_src} to ${el_dest}`);
-                                fs.copy(el_src, el_dest).then(arr => {
+                                fs.copy(el_src, el_dest).then(() => {
                                     console.log(`Removing ${path.join(el_dest, 'env')}`);
                                     fs.remove(path.join(el_dest, 'env')).then(() => {
-                                        console.log(`Copying ${env_prod_src} to ${env_dest}`);
-                                        fs.copy(env_prod_src, env_dest).then(() => {
+                                        console.log(`Copying ${electron_env} to ${electron_env_dest}`);
+                                        fs.copy(electron_env, electron_env_dest).then(() => {
                                             // 3. package the folder
                                             console.log('Building with electron-build...');
-                                            this.build().then(arr => {
+                                            this.build().then(() => {
                                                 console.log(chalk `{rgb(128,255,128) Your app was build successuly!}`);
                                                 // 4. ask to remove temp files
                                                 resolve();
@@ -243,12 +250,13 @@ class Build {
 
     buildAngular() {
         return new Promise((resolve, reject) => {
-            console.log(chalk `{rgb(255,128,0) Building Angular for production...}`);
+            console.log(chalk `{rgb(255,128,0) Building Angular for ${this.angular_env === 'production' ? 'production' : 'development'}...}`);
+
             const ng_build = spawn('node', [
                 path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'bin', 'ng'),
                 'build',
                 this.build_project,
-                '--configuration=production',
+                `--configuration=${this.angular_env}`,
                 `--output-path=./tmp`,
                 `--base-href=`,
             ], {
