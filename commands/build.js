@@ -63,7 +63,10 @@ class Build {
 
         this.win32_options = {
             win: {
-                icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon.ico') : '',
+                icon:
+                    fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'app', 'assets', 'icon.png')) ?
+                        path.join(process.cwd(), this.prebuild_folder_name, 'app', 'assets', 'icon.png') :
+                        '',
                 target: [
                     {
                         target: 'nsis',
@@ -97,7 +100,7 @@ class Build {
 
         this.linux_options = {
             linux: {
-                icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon-192x192.png')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'app-icon-192x192.png') : '',
+                icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'icon-256x256.png')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'icon-256x256.png') : '',
                 category: '',
                 target: [
                     'deb',
@@ -145,9 +148,9 @@ class Build {
                 const el_src = path.join(process.cwd(), 'electron');
                 const el_dest = path.join(process.cwd(), this.prebuild_folder_name);
                 const electron_env = fs.existsSync(path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.${this.electron_env}.js`)) ? path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.${this.electron_env}.js`) : path.join(process.cwd(), 'electron', 'env', 'environment.prod.js');
-                const electron_env_dest = path.join(process.cwd(), 'electron', 'environment.js');
+                const electron_env_dest = path.join(process.cwd(), this.prebuild_folder_name, 'environment.js');
 
-                console.log(chalk `{rgb(255,128,0) Bundling Electron for ${this.electron_env === 'prod' ? 'production' : 'development'}...}`);
+                console.log(chalk`{rgb(255,128,0) Bundling Electron for ${this.electron_env === 'prod' ? 'production' : 'development'}...}`);
 
                 // Remove old compiled angular
                 fs.remove(ng_src).then(() => {
@@ -156,18 +159,18 @@ class Build {
                         // 1. ng build --configuration=production
                         this.buildAngular().then(() => {
                             // 2. copy everything to a folder
-                            console.log(`Moving from ${ng_src} to ${ng_dest}`);
+                            console.log(chalk.green('MOVE'), `${ng_src} to ${ng_dest}`);
                             fs.move(ng_src, ng_dest).then(() => {
-                                console.log(`Copying from ${el_src} to ${el_dest}`);
+                                console.log(chalk.green('COPY'), `${el_src} to ${el_dest}`);
                                 fs.copy(el_src, el_dest).then(() => {
-                                    console.log(`Removing ${path.join(el_dest, 'env')}`);
+                                    console.log(chalk.green('DELETE'), `${path.join(el_dest, 'env')}`);
                                     fs.remove(path.join(el_dest, 'env')).then(() => {
-                                        console.log(`Copying ${electron_env} to ${electron_env_dest}`);
+                                        console.log(chalk.green('COPY'), `${electron_env} to ${electron_env_dest}`);
                                         fs.copy(electron_env, electron_env_dest).then(() => {
                                             // 3. package the folder
                                             console.log('Building with electron-build...');
                                             this.build().then(() => {
-                                                console.log(chalk `{rgb(128,255,128) Your app was build successuly!}`);
+                                                console.log(chalk`{rgb(128,255,128) Your app was build successuly!}`);
                                                 // 4. ask to remove temp files
                                                 resolve();
                                             });
@@ -199,22 +202,22 @@ class Build {
     startAskingQuestions() {
         return new Promise(resolve => {
             inquirer.prompt([{
-                    type: 'confirm',
-                    name: 'asar',
-                    message: `Do you want to use ASAR while building ${packageJson.productName}?`,
-                    default: true
-                },
-                {
-                    type: 'list',
-                    name: 'os',
-                    message: 'Which platform do you want to build for?',
-                    choices: [
-                        'Windows',
-                        'Linux',
-                        'MacOs'
-                    ],
-                    default: 'Windows'
-                }
+                type: 'confirm',
+                name: 'asar',
+                message: `Do you want to use ASAR while building ${packageJson.productName}?`,
+                default: true
+            },
+            {
+                type: 'list',
+                name: 'os',
+                message: 'Which platform do you want to build for?',
+                choices: [
+                    'Windows',
+                    'Linux',
+                    'MacOs'
+                ],
+                default: 'Windows'
+            }
             ]).then((answers) => {
                 this.electroBuilderJson.config.asar = answers.asar;
                 switch (answers.os) {
@@ -248,9 +251,15 @@ class Build {
         });
     }
 
+    copyResources() {
+        return new Promise((resolve, reject) => {
+            resolve();
+        });
+    }
+
     buildAngular() {
         return new Promise((resolve, reject) => {
-            console.log(chalk `{rgb(255,128,0) Building Angular for ${this.angular_env === 'production' ? 'production' : 'development'}...}`);
+            console.log(chalk`{rgb(255,128,0) Building Angular for ${this.angular_env === 'production' ? 'production' : 'development'}...}`);
 
             const ng_build = spawn('node', [
                 path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'bin', 'ng'),
@@ -260,12 +269,12 @@ class Build {
                 `--output-path=./tmp`,
                 `--base-href=`,
             ], {
-                stdio: [process.stdin, process.stdout, process.stderr]
-            });
+                    stdio: [process.stdin, process.stdout, process.stderr]
+                });
 
             ng_build.once('exit', (code, signal) => {
                 if (code === 0) {
-                    console.log(chalk `{green Angular production project built!}`);
+                    console.log(chalk`{green Angular production project built!}`);
                     resolve();
                 } else {
                     process.exit(code);
