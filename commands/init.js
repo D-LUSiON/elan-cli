@@ -20,7 +20,7 @@ class Init {
         this.angular_options = {};
         this.electron_options = {};
         this.package_json_options = {};
-        this.install_dependancies = false;
+        this.install_dependancies = true;
     }
 
     entry() {
