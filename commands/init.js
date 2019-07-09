@@ -181,6 +181,7 @@ class Init {
                 .then(() => this.saveElanOptions())
                 .then(() => this.installDependancies())
                 .then(() => this._manageIgnores())
+                .then(() => this._createEditorConfig())
                 .then(() => this._commitChanges())
                 .then(() => {
                     console.log(chalk.green(`\nProject "${this.elan_options.package.name}" initialized successfuly!\n\n`));
@@ -480,6 +481,29 @@ class Init {
                     resolve();
                 }
             });
+        });
+    }
+
+    _createEditorConfig() {
+        return new Promise((resolve, reject) => {
+            if (!fs.existsSync(path.join(process.cwd(), this.elan_options.name, '.editorconfig'))) {
+                const editorconfig = [
+                    'root = true',
+                    '',
+                    '[*]',
+                    'indent_style = space',
+                    'indent_size = 4',
+                    'charset = utf-8',
+                    'trim_trailing_whitespace = true',
+                    'insert_final_newline = true',
+                ].join(`\n`);
+                
+                fs.writeFile(path.join(process.cwd(), this.elan_options.name, '.editorconfig'), editorconfig, 'utf8', (err) => {
+                    if (err) console.log(err);
+                    resolve();
+                });
+            } else
+            resolve();
         });
     }
 
