@@ -32,6 +32,9 @@ class Init {
                         .then(() => this.setupAll())
                         .then(() => {
                             resolve();
+                        })
+                        .catch(error => {
+                            console.log(chalk.red('ERROR'), error);
                         });
                 } else {
                     if (fs.existsSync(path.join(process.cwd(), this.args._[1], 'elan.json'))) {
@@ -54,6 +57,9 @@ class Init {
                         .then(() => this.setupAll())
                         .then(() => {
                             resolve();
+                        })
+                        .catch(error => {
+                            console.log(chalk.red('ERROR'), error);
                         });
                 } else {
                     // TODO: initialize elan.json (like `npm init`)
@@ -181,13 +187,19 @@ class Init {
                 .then(() => this.saveElanOptions())
                 .then(() => this.installDependancies())
                 .then(() => this._manageIgnores())
+                .then(() => this._modifyBrowserslist())
                 .then(() => this._createEditorConfig())
                 .then(() => this._commitChanges())
                 .then(() => {
-                    console.log(chalk.green(`\nProject "${this.elan_options.package.name}" initialized successfuly!\n\n`));
-                    console.log(chalk.magentaBright(`Thank you for using ElAn-cli!`), chalk.magenta(`( https://github.com/D-LUSiON/elan-cli )`));
+                    console.log(chalk.greenBright(`\nProject "${this.elan_options.package.name}" initialized successfuly!\n\n`));
+                    console.log(chalk.blueBright(`Note:`, chalk.blue(`If you've chosen to use routes with Angular, don't forget to use hashes!\n(replace "RouterModule.forRoot(routes)" with "RouterModule.forRoot(routes, { useHash: true })")\n\n`)));
+                    console.log(chalk.greenBright(`Now type in your console:\n\n cd ${this.elan_options.package.name}\n elan serve\n\nand start building your awesome app!\n\n`));
+                    console.log(chalk.magentaBright(`Thank you for using ElAn CLI!`), chalk.magenta(`( https://github.com/D-LUSiON/elan-cli )`));
                     console.log(chalk.magentaBright(`I'll appreciate any feedback and issue reports!`));
                     resolve();
+                })
+                .catch(error => {
+                    console.log(chalk.red('ERROR'), error);
                 });
         });
     }
@@ -211,14 +223,16 @@ class Init {
 
             ng_new.once('exit', (code, signal) => {
                 if (code === 0) {
-                    console.log(chalk.green('DONE'), 'Angular project created!');
+                    console.log(chalk.greenBright('DONE'), 'Angular project created!');
 
                     this._modifyAngularJSON()
                         .then(() => this._getAngularJson())
                         .then(() => this._getPackageJson())
-                        .then(() => this._modifyElectronPackageJSON())
                         .then(() => {
                             resolve();
+                        })
+                        .catch(error => {
+                            console.log(chalk.red('ERROR'), error);
                         });
                 } else {
                     process.exit(code);
@@ -227,28 +241,38 @@ class Init {
         });
     }
 
+    updateAngularRouting() {
+        // TODO: Update Angular routing if chosen to be used
+        return new Promise((resolve, reject) => {
+            if (fs.existsSync(path.join(progress.cwd(), this.elan_options.package.name)))
+            resolve();
+        });
+    }
+
     copyElectronAssets() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.cyan('INFO'), `Copying Electron assets...`);
+            console.log(chalk.cyan('INFO'), `Creating Electron scripts...`);
             let ncp_options = {};
             if (!this.angular_options.createApplication)
                 ncp_options = {
                     filter: (file) => !file.startsWith(path.join(__dirname, '..', 'assets', 'src'))
                 }
             ncp(path.join(__dirname, '..', 'assets'), path.join(process.cwd(), this.package_json_options.name), ncp_options, () => {
-
-                console.log(chalk.green('DONE'), 'Electron files created!');
-                resolve();
+                this._modifyElectronPackageJSON().then(() => {
+                    resolve();
+                }).catch(error => {
+                    console.log(chalk.red('ERROR'), error);
+                });
             });
         });
     }
 
     initElectron() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.cyan('INFO'), `Initializing Electron...`);
+            console.log(chalk.cyan('INFO'), `Adding Electron dependancies to package.json...`);
             this._getLatestDepsVersions().then(([electron_version, ngx_electron_version]) => {
-                console.log(chalk.cyan('INFO'), `Latest Electron version:`, chalk.green(`v${electron_version}`));
-                console.log(chalk.cyan('INFO'), `Latest ngx-electron version:`, chalk.green(`v${ngx_electron_version}`));
+                console.log(chalk.cyan('INFO'), `Latest Electron version:`, chalk.greenBright(`v${electron_version}`));
+                console.log(chalk.cyan('INFO'), `Latest ngx-electron version:`, chalk.greenBright(`v${ngx_electron_version}`));
 
                 if (!this.package_json_options.dependencies) this.package_json_options.dependencies = {};
                 if (!this.package_json_options.devDependencies) this.package_json_options.devDependencies = {};
@@ -256,14 +280,32 @@ class Init {
                 this.package_json_options.dependencies['ngx-electron'] = `^${ngx_electron_version}`;
                 this.package_json_options.devDependencies.electron = `^${electron_version}`;
 
+                // TODO: This block can be optimized from here...
+                const dependencies = {};
+
+                Object.keys(this.package_json_options.dependencies).sort().forEach(key => {
+                    dependencies[key] = this.package_json_options.dependencies[key];
+                });
+
                 const devDependencies = {};
 
                 Object.keys(this.package_json_options.devDependencies).sort().forEach(key => {
                     devDependencies[key] = this.package_json_options.devDependencies[key];
                 });
 
+                this.package_json_options.dependencies = dependencies;
                 this.package_json_options.devDependencies = devDependencies;
-                resolve();
+                // ... until here...
+
+                this.package_json_options = {
+                    ...this.package_json_options,
+                    ...this.elan_options.package
+                };
+
+                fs.writeFile(path.join(process.cwd(), this.elan_options.package.name, 'package.json'), JSON.stringify(this.package_json_options, null, 2), 'utf8', (err) => {
+                    if (err) console.log(err);
+                    resolve();
+                });
             });
         });
     }
@@ -386,6 +428,33 @@ class Init {
         });
     }
 
+    _modifyBrowserslist() {
+        return new Promise((resolve, reject) => {
+            fs.readFile(path.join(process.cwd(), this.elan_options.package.name, 'browserslist')).then(browserslist => {
+                const brl = browserslist.toString().split(/\n/);
+                let last_idx = -1;
+                brl.forEach((line, idx) => {
+                    if (line.startsWith('#'))
+                        last_idx = idx;
+                });
+
+                const brl_updated = brl.slice(0, last_idx);
+                brl_updated.push('');
+                brl_updated.push('last 2 Chrome versions');
+
+                fs.writeFile(
+                    path.join(process.cwd(), this.elan_options.package.name, 'browserslist'),
+                    brl_updated.join(`\n`),
+                    'utf8',
+                    (err) => {
+                        if (err) console.log(err);
+                        resolve();
+                    }
+                )
+            });
+        });
+    }
+
     _modifyElectronPackageJSON() {
         return new Promise((resolve, reject) => {
             exec('npm view electron-window-state version', (err, stdout, stderr) => {
@@ -429,7 +498,7 @@ class Init {
                 } else {
                     const gitignore = buffer.toString().split(/\n/);
                     const idx = gitignore.findIndex(x => x === '# compiled output') + 1;
-                    ['/dist-*', '/build', '/www-*', '/www'].forEach(exception => {
+                    ['/dist-*', '/build', '/www-*', '/www', '/release'].forEach(exception => {
                         gitignore.splice(idx, 0, exception);
                     });
                     fs.writeFile(path.join(process.cwd(), this.elan_options.package.name, '.gitignore'), gitignore.join(`\n`), 'utf8', (err) => {
@@ -486,7 +555,7 @@ class Init {
 
     _createEditorConfig() {
         return new Promise((resolve, reject) => {
-            if (!fs.existsSync(path.join(process.cwd(), this.elan_options.name, '.editorconfig'))) {
+            if (!fs.existsSync(path.join(process.cwd(), this.elan_options.package.name, '.editorconfig'))) {
                 const editorconfig = [
                     'root = true',
                     '',
@@ -497,13 +566,13 @@ class Init {
                     'trim_trailing_whitespace = true',
                     'insert_final_newline = true',
                 ].join(`\n`);
-                
-                fs.writeFile(path.join(process.cwd(), this.elan_options.name, '.editorconfig'), editorconfig, 'utf8', (err) => {
+
+                fs.writeFile(path.join(process.cwd(), this.elan_options.package.name, '.editorconfig'), editorconfig, 'utf8', (err) => {
                     if (err) console.log(err);
                     resolve();
                 });
             } else
-            resolve();
+                resolve();
         });
     }
 

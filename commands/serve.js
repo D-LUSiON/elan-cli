@@ -4,6 +4,7 @@ const {
 const nodemon = require('nodemon');
 const path = require('path');
 const chalk = require('chalk');
+const ng = path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng');
 
 class Serve {
     constructor(args) {
@@ -11,7 +12,6 @@ class Serve {
         this.usage = '$ elan serve [project] [,options]';
         this.options = [];
         this.args = args;
-        this.ng = path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng');
     }
 
     entry() {
@@ -25,7 +25,7 @@ class Serve {
 
     ngWatch() {
         return new Promise((resolve, reject) => {
-            const ng_build = spawn('node', [this.ng, 'build', '--watch', '--configuration=dev'], {
+            const ng_build = spawn('node', [ng, 'build', '--watch', '--configuration=dev'], {
                 stdio: 'inherit'
             });
             

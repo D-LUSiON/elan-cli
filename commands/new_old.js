@@ -13,7 +13,7 @@ const npm = path.join(...np, 'node_modules', 'npm', 'bin', 'npm-cli.js');
 
 class New {
     constructor(args) {
-        this.description = 'Starts a new project ("init" is an alias)';
+        this.description = 'Starts a new project (deprecated)';
         this.usage = '$ elan new [project-name] [options]';
         this.aliases = 'init';
         this.args = args;

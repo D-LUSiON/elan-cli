@@ -6,10 +6,14 @@ const chokidar = require('chokidar');
 
 class Serve {
     constructor(args) {
-        this.description = 'Starts a development server';
+        this.description = 'Starts a development server (deprecated)';
         this.usage = '$ elan serve [,project] [options]';
         this.options = [];
         this.args = args;
+        
+    }
+
+    _init() {
         this.local_package_json = {};
         this.electron_changed_timeout = null;
         this.angular_json = require(path.join(process.cwd(), 'angular.json'));
@@ -18,6 +22,7 @@ class Serve {
     }
 
     entry() {
+        this._init();
         return new Promise((resolve, reject) => {
             this._isElAnProject().then(() => {
                 this._checkIsAngularPrebuild().then(is_prebuild => {

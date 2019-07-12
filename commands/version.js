@@ -21,7 +21,7 @@ class Version {
 
     displayVersion() {
         return new Promise((resolve, reject) => {
-            console.log(chalk `\n{rgb(255,131,0) Checking installed versions...}`);
+            console.log(`\n${chalk.rgb(255,131,0)('Checking for installed versions...')}`);
 
             loadingSpinner.start(
                 100, {

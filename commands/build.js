@@ -1,281 +1,102 @@
-const path = require('path');
 const fs = require('fs-extra');
-const inquirer = require('inquirer');
+const path = require('path');
+const {
+    spawn
+} = require('child_process');
 const chalk = require('chalk');
-const extend = require('extend');
-const exec = require('child_process').exec;
-const spawn = require('child_process').spawn;
-const webpack = require('webpack');
+const inquirer = require('inquirer');
 
-const builder = require('electron-builder');
-const Platform = builder.Platform;
-const packageJson = require(path.join(process.cwd(), 'package.json'));
+const np = process.argv[0].split(/[\\\/]/g);
+np.pop();
+const npm = path.join(...np, 'node_modules', 'npm', 'bin', 'npm-cli.js');
+const ng = path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng');
+const webpack = require('webpack');
 
 class Build {
     constructor(args) {
         this.description = 'Starts build process';
-        this.usage = '$ elan build [,project]  [options]';
+        this.usage = '$ elan bld [project] [,options]';
         this.options = [];
         this.args = args;
-        this.local_package_json = {};
-        this.angular_json = require(path.join(process.cwd(), 'angular.json'));
-        this.build_project = this.args._[1] || this.angular_json.defaultProject;
-        this.prebuild_folder_name = `dist-${this.build_project}`;
-
-        this.electron_env = this.args['electron-prod'] ? 'prod' : 'dev';
-        this.angular_env = this.args['angular-prod'] ? 'production' : 'dev';
-
-        console.log(this.args);
-
-        this.electroBuilderJsonDefault = {
-            // publish: [{
-            //     provider: 'generic',
-            //     url: ''
-            // }],
-            // appId: 'com.qms-bg.${productName}',
-            productName: this.build_project,
-            artifactName: '${productName}-${version}-${os}-${arch}.${ext}',
-            directories: {
-                buildResources: 'resources',
-                app: this.prebuild_folder_name,
-                output: `release/${this.build_project}` + '-${version}-${os}-${arch}'
-            },
-            files: [
-                '**/*',
-                // 'app/**/*',
-                // 'electron/**/*',
-                '!**/env/**/*',
-                // '!**/node_modules/**/*',
-                '!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}',
-                '!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}',
-                '!**/node_modules/*.d.ts',
-                '!**/node_modules/.bin',
-                '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}',
-                '!.editorconfig',
-                '!**/._*',
-                '!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}',
-                '!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}',
-                '!**/{appveyor.yml,.travis.yml,circle.yml}',
-                '!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}'
-            ],
+        this.answers = {
             asar: false,
-        };
-
-        this.win32_options = {
-            win: {
-                icon:
-                    fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'app', 'assets', 'icon.png')) ?
-                        path.join(process.cwd(), this.prebuild_folder_name, 'app', 'assets', 'icon.png') :
-                        '',
-                target: [
-                    {
-                        target: 'nsis',
-                        arch: [
-                            'x64',
-                            // 'ia32'
-                        ]
-                    },
-                    {
-                        target: 'zip',
-                        arch: [
-                            'x64',
-                            // 'ia32'
-                        ]
-                    },
-                    {
-                        target: 'portable',
-                        arch: [
-                            'x64',
-                            // 'ia32'
-                        ]
-                    },
-                ],
-            },
-            nsis: {
-                oneClick: false,
-                allowToChangeInstallationDirectory: true,
-                artifactName: '${productName}-setup-${version}-win.${ext}'
-            },
-        };
-
-        this.linux_options = {
-            linux: {
-                icon: fs.existsSync(path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'icon-256x256.png')) ? path.join(process.cwd(), this.prebuild_folder_name, 'assets', 'icon-256x256.png') : '',
-                category: '',
-                target: [
-                    'deb',
-                    'tar.gz',
-                    // 'appimage'
-                ],
-            },
-        };
-
-        this.macOs_options = {
-            mac: {
-                category: '',
-                target: [
-                    'zip',
-                    'dmg'
-                ],
-                darkModeSupport: true,
-                extraResources: [{
-                    filter: [
-                        'LICENSE.txt',
-                        'NOTICE.txt'
-                    ]
-                }]
-            },
-            dmg: {
-                background: 'resources/osx/DMG_BG.png',
-                iconSize: 140,
-                iconTextSize: 18
-            },
-        }
-
-        this.electroBuilderJson = {
-            targets: Platform.WINDOWS.createTarget(),
-            config: {
-                ...this.electroBuilderJsonDefault,
-            }
+            target: 'Windows'
         };
     }
-
+    
     entry() {
+        this.packageJson = require(path.join(process.cwd(), 'package.json'));
+        this.angularJson = require(path.join(process.cwd(), 'angular.json'));
+        this.elanJson = require(path.join(process.cwd(), 'elan.json'));
         return new Promise((resolve, reject) => {
-            this.startAskingQuestions().then(answers => {
-                const ng_src = path.join(process.cwd(), 'tmp');
-                const ng_dest = path.join(process.cwd(), this.prebuild_folder_name, 'app');
-                const el_src = path.join(process.cwd(), 'electron');
-                const el_dest = path.join(process.cwd(), this.prebuild_folder_name);
-                const electron_env = fs.existsSync(path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.${this.electron_env}.js`)) ? path.join(process.cwd(), 'electron', 'env', `environment.${this.build_project}.${this.electron_env}.js`) : path.join(process.cwd(), 'electron', 'env', 'environment.prod.js');
-                const electron_env_dest = path.join(process.cwd(), this.prebuild_folder_name, 'environment.js');
-
-                console.log(chalk`{rgb(255,128,0) Bundling Electron for ${this.electron_env === 'prod' ? 'production' : 'development'}...}`);
-
-                // Remove old compiled angular
-                fs.remove(ng_src).then(() => {
-                    // Remove old prepacked javascript
-                    fs.remove(path.join(process.cwd(), this.prebuild_folder_name)).then(() => {
-                        // 1. ng build --configuration=production
-                        this.buildAngular().then(() => {
-                            // 2. copy everything to a folder
-                            console.log(chalk.green('MOVE'), `${ng_src} to ${ng_dest}`);
-                            fs.move(ng_src, ng_dest).then(() => {
-                                console.log(chalk.green('COPY'), `${el_src} to ${el_dest}`);
-                                fs.copy(el_src, el_dest).then(() => {
-                                    console.log(chalk.green('DELETE'), `${path.join(el_dest, 'env')}`);
-                                    fs.remove(path.join(el_dest, 'env')).then(() => {
-                                        console.log(chalk.green('COPY'), `${electron_env} to ${electron_env_dest}`);
-                                        fs.copy(electron_env, electron_env_dest).then(() => {
-                                            // 3. package the folder
-                                            console.log('Building with electron-build...');
-                                            this.build().then(() => {
-                                                console.log(chalk`{rgb(128,255,128) Your app was build successuly!}`);
-                                                // 4. ask to remove temp files
-                                                resolve();
-                                            });
-                                            // webpack({
-                                            //     target: 'node',
-                                            //     entry: path.join(el_src, 'main.js'),
-                                            //     output: {
-                                            //         path: el_dest,
-                                            //         filename: 'main.js'
-                                            //     },
-                                            // }).run(arr => {
-                                            //     console.log(`Copying back ${env_prod_src} to ${env_dest}`);
-                                            //     fs.copy(env_dev_src, env_dest).then(() => {
-                                            //         fs.remove(path.join(el_dest, 'env')).then(() => {
-                                            //         });
-                                            //     });
-                                            // });
-                                        });
-                                    });
-                                });
-                            });
-                        });
-                    });
+            this.startAskingQuestions()
+                .then(() => this.removeOldBuild())
+                .then(() => this.copyElectronFiles())
+                .then(() => this.installElectronDependancies())
+                .then(() => this.buildElectron())
+                .then(() => this.createBuildPackageJSON())
+                .then(() => this.buildAngular())
+                .then(() => this.build())
+                .then(() => {
+                    resolve();
+                })
+                .catch(error => {
+                    console.log(chalk.red('ERROR'), error);
                 });
-            });
+        });
+    }
+
+    removeOldBuild() {
+        return new Promise((resolve, reject) => {
+            fs.remove(path.join(process.cwd(), 'build'))
+                .then(() => fs.remove(path.join(process.cwd(), 'tmp')))
+                .then(() => {
+                    resolve();
+                });
         });
     }
 
     startAskingQuestions() {
         return new Promise(resolve => {
             inquirer.prompt([{
-                type: 'confirm',
-                name: 'asar',
-                message: `Do you want to use ASAR while building ${packageJson.productName}?`,
-                default: true
-            },
-            {
-                type: 'list',
-                name: 'os',
-                message: 'Which platform do you want to build for?',
-                choices: [
-                    'Windows',
-                    'Linux',
-                    'MacOs'
-                ],
-                default: 'Windows'
-            }
-            ]).then((answers) => {
-                this.electroBuilderJson.config.asar = answers.asar;
-                switch (answers.os) {
-                    case 'Windows':
-                        this.electroBuilderJson.targets = Platform.WINDOWS.createTarget();
-                        this.electroBuilderJson.config = {
-                            ...this.electroBuilderJson.config,
-                            ...this.win32_options
-                        };
-                        break;
-                    case 'Linux':
-                        this.electroBuilderJson.targets = Platform.LINUX.createTarget();
-                        this.electroBuilderJson.config = {
-                            ...this.electroBuilderJson.config,
-                            ...this.linux_options
-                        };
-                        break;
-                    case 'macOs':
-                        this.electroBuilderJson.targets = Platform.MAC.createTarget();
-                        this.electroBuilderJson.config = {
-                            ...this.electroBuilderJson.config,
-                            ...this.macOs_options
-                        };
-                        break;
-
-                    default:
-                        break;
+                    type: 'confirm',
+                    name: 'asar',
+                    message: `Do you want to use ASAR while building ${this.packageJson.productName || this.packageJson.name}?`,
+                    default: true
+                },
+                {
+                    type: 'list',
+                    name: 'os',
+                    message: 'Which platform do you want to build for?',
+                    choices: [
+                        'Windows',
+                        'Linux',
+                        'MacOs'
+                    ],
+                    default: 'Windows'
                 }
-                resolve(answers);
+            ]).then((answers) => {
+                this.answers = {
+                    asar: answers.asar,
+                    target: answers.os
+                };
+                resolve();
             });
-        });
-    }
-
-    copyResources() {
-        return new Promise((resolve, reject) => {
-            resolve();
         });
     }
 
     buildAngular() {
         return new Promise((resolve, reject) => {
-            console.log(chalk`{rgb(255,128,0) Building Angular for ${this.angular_env === 'production' ? 'production' : 'development'}...}`);
-
-            const ng_build = spawn('node', [
-                path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'bin', 'ng'),
-                'build',
-                this.build_project,
-                `--configuration=${this.angular_env}`,
-                `--output-path=./tmp`,
-                `--base-href=`,
-            ], {
-                    stdio: [process.stdin, process.stdout, process.stderr]
-                });
+            console.log(chalk.greenBright('ACTION'), 'Start building Angular...');
+            const ng_build = spawn('node', [ng, 'build', '--configuration=production'], {
+                stdio: 'inherit'
+            });
 
             ng_build.once('exit', (code, signal) => {
                 if (code === 0) {
-                    console.log(chalk`{green Angular production project built!}`);
-                    resolve();
+                    this.fixIndexHTML().then(() => {
+                        resolve();
+                    });
                 } else {
                     process.exit(code);
                 }
@@ -283,8 +104,198 @@ class Build {
         });
     }
 
+    fixIndexHTML() {
+        return new Promise((resolve, reject) => {
+            fs.readFile(path.join(process.cwd(), 'build', 'app', 'index.html')).then(index_html => {
+                index_html = index_html.toString().replace(/type=\"module\"/g, 'type="text/javascript"');
+                fs.writeFile(path.join(process.cwd(), 'build', 'app', 'index.html'), index_html, 'utf8', () => {
+                    resolve();
+                });
+            });
+        });
+    }
+
+    copyElectronFiles() {
+        return new Promise((resolve, reject) => {
+            fs.mkdir(path.join(process.cwd(), 'tmp'))
+                .then(() => fs.copy(path.join(process.cwd(), 'electron'), path.join(process.cwd(), 'tmp'), {
+                    recursive: true,
+                    filter: (path) => {
+                        const ignored = ['env', 'node_modules', 'package-lock.json'];
+                        const found = !!ignored.filter(x => path.replace(process.cwd(), '').substr(1).split(/[\\\/]/).indexOf(x) > -1).length;
+                        if (!found) {
+                            if (path.replace(process.cwd(), '').substr(1).match(/[A-Za-z0-9]{1,}\.[A-Za-z0-9]{1,}$/))
+                                console.log(chalk.greenBright('COPY'), path.replace(process.cwd(), '').substr(1), chalk.green('->'), `temp${path.replace(process.cwd(), '').substr(1).replace(/^electron/, '')}`);
+                            return true;
+                        } else
+                            return false;
+                    }
+                }))
+                .then(() => fs.copy(path.join(process.cwd(), 'electron', 'env', 'environment.prod.js'), path.join(process.cwd(), 'tmp', 'environment.js')))
+                .then(() => {
+                    resolve();
+                });
+        });
+    }
+
+    installElectronDependancies() {
+        return new Promise((resolve, reject) => {
+            console.log(chalk.greenBright('ACTION'), `Installing Electron dependancies...`);
+
+            const package_json = require(path.join(process.cwd(), 'tmp', 'package.json'));
+            delete package_json.devDependencies;
+            fs.writeFile(
+                path.join(process.cwd(), 'tmp', 'package.json'),
+                JSON.stringify(package_json, null, 2),
+                'utf8'
+            ).then(() => {
+                const npm_install = spawn('node', [npm, 'install'], {
+                    cwd: path.join(process.cwd(), 'tmp'),
+                    stdio: 'inherit'
+                });
+                npm_install.once('exit', (code, signal) => {
+                    if (code === 0)
+                        resolve();
+                    else
+                        process.exit(code);
+                });
+            });
+        });
+    }
+
+    buildElectron() {
+        return new Promise((resolve, reject) => {
+            console.log(chalk.greenBright('ACTION'), 'Webpacking Electron...');
+            webpack({
+                target: 'electron-main',
+                entry: './tmp/main.js',
+                output: {
+                    path: path.join(process.cwd(), 'build'),
+                    filename: 'main.js'
+                },
+                mode: 'production'
+            }).run((err, stats) => {
+                if (err) {
+                    console.error(err.stack || err);
+                    if (err.details) {
+                        console.error(err.details);
+                    }
+                    reject(err);
+                }
+
+                const info = stats.toJson();
+
+                if (stats.hasErrors()) {
+                    console.error(info.errors);
+                    reject(info.errors);
+                } else if (stats.hasWarnings()) {
+                    console.warn(info.warnings);
+                } else {
+                    console.log(stats.toString({
+                        assets: false,
+                        hash: true,
+                        colors: true
+                    }));
+                    resolve();
+                }
+            });
+        });
+    }
+
+    createBuildPackageJSON() {
+        return new Promise((resolve, reject) => {
+            fs.writeFile(
+                path.join(process.cwd(), 'build', 'package.json'),
+                JSON.stringify({
+                    name: this.packageJson.name,
+                    productName: this.packageJson.productName,
+                    version: this.packageJson.version,
+                    description: this.packageJson.description,
+                    author: this.packageJson.author,
+                    main: 'main.js'
+                }, null, 2),
+                'utf8'
+            ).then(() => {
+                resolve();
+            });
+        });
+    }
+
     build() {
-        return builder.build(this.electroBuilderJson);
+        console.log(chalk.greenBright('ACTION'), `Building for ${this.answers.target}...`);
+        const builder = require('electron-builder');
+        const Platform = builder.Platform;
+
+        let target;
+        switch (this.answers.target) {
+            case 'Linux':
+                target = Platform.LINUX.createTarget();
+                break;
+            case 'macOs':
+                target = Platform.MAC.createTarget();
+                break;
+            case 'Windows':
+            default:
+                target = Platform.WINDOWS.createTarget();
+                break;
+        }
+
+        if (this.args.debug)
+            process.env.DEBUG = 'electron-builder';
+
+        return builder.build({
+            targets: target,
+            config: {
+                productName: this.packageJson.productName || this.packageJson.name,
+                artifactName: '${productName}-${version}-${os}-${arch}.${ext}',
+                directories: {
+                    buildResources: 'resources',
+                    app: 'build',
+                    output: `release/${this.packageJson.productName || this.packageJson.name}` + '-${version}-${os}-${arch}'
+                },
+                files: [
+                    '**/*',
+                ],
+                asar: this.answers.asar,
+                win: {
+                    icon: fs.existsSync(path.join(process.cwd(), 'resources', 'icon.ico')) ? path.join(process.cwd(), 'resources', 'icon.ico') : '',
+                    target: ['nsis', 'zip', 'portable']
+                },
+                nsis: {
+                    oneClick: false,
+                    allowToChangeInstallationDirectory: true,
+                    artifactName: '${productName}-setup-${version}-win.${ext}'
+                },
+                linux: {
+                    icon: fs.existsSync(path.join(process.cwd(), 'resources', 'icon-256x256.png')) ? path.join(process.cwd(), 'resources', 'icon-256x256.png') : '',
+                    category: '',
+                    target: [
+                        'deb',
+                        'tar.gz',
+                        // 'appimage'
+                    ],
+                },
+                mac: {
+                    category: '',
+                    target: [
+                        'zip',
+                        'dmg'
+                    ],
+                    darkModeSupport: true,
+                    extraResources: [{
+                        filter: [
+                            'LICENSE.txt',
+                            'NOTICE.txt'
+                        ]
+                    }]
+                },
+                dmg: {
+                    background: 'resources/osx/DMG_BG.png',
+                    iconSize: 140,
+                    iconTextSize: 18
+                },
+            }
+        });
     }
 }
 

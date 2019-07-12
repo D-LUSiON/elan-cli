@@ -6,7 +6,7 @@ const sharp = require('sharp'); // image processing library
 
 class Resources {
     constructor(args) {
-        this.description = 'Builds app resources - mainly images and icons';
+        this.description = 'Builds app resources - mainly images and icons (not implemented yet)';
         this.usage = '$ elan resources [...options]';
         this.options = [];
 

@@ -1,6 +1,6 @@
 /**********************************************
  * This class is initializing the main window
- * 
+ *
  * Feel free to modify it or even modify
  * everythig related to Electron initialization
  * to your liking
@@ -45,7 +45,7 @@ class MainWindow {
 
             this.winState.manage(this.window);
 
-            this.window.loadFile(path.join(__dirname, ROOT_DIR, env.html_src, 'index.html'));
+            this.window.loadFile(`${ROOT_DIR}/${env.html_src}/index.html`);
 
             this.window.once('ready-to-show', () => {
                 this.window.show();
@@ -62,6 +62,11 @@ class MainWindow {
                 this.window.webContents.openDevTools();
             });
 
+            // Event when the window about to be closed.
+            this.window.on('close', () => {
+                this.winState.unmanage();
+            });
+
             // Event when the window is closed.
             this.window.on('closed', this.destroy);
         } else {
@@ -70,7 +75,6 @@ class MainWindow {
     }
 
     destroy() {
-        this.winState.unmanage();
         this.window = null;
     }
 }
