@@ -16,33 +16,53 @@ class Build {
     constructor(args) {
         this.description = 'Starts build process';
         this.usage = '$ elan bld [project] [,options]';
-        this.options = [];
+        this.options = {
+            keepCompile: false
+        };
         this.args = args;
         this.answers = {
             asar: false,
             target: 'Windows'
         };
     }
-    
+
     entry() {
+        this.options = {
+            ...this.options,
+            ...this.args
+        };
+        delete this.options._;
+
         this.packageJson = require(path.join(process.cwd(), 'package.json'));
         this.angularJson = require(path.join(process.cwd(), 'angular.json'));
-        this.elanJson = require(path.join(process.cwd(), 'elan.json'));
+        this.project = this.args._[1] || this.angularJson.defaultProject;
+        
+        if (this.args._[1])
+            console.log(chalk.greenBright('ACTION'), `Building project "${this.project}"...`);
+
         return new Promise((resolve, reject) => {
-            this.startAskingQuestions()
-                .then(() => this.removeOldBuild())
-                .then(() => this.copyElectronFiles())
-                .then(() => this.installElectronDependancies())
-                .then(() => this.buildElectron())
-                .then(() => this.createBuildPackageJSON())
-                .then(() => this.buildAngular())
-                .then(() => this.build())
-                .then(() => {
-                    resolve();
-                })
-                .catch(error => {
-                    console.log(chalk.red('ERROR'), error);
-                });
+            if (!this.angularJson.projects[this.project])
+                reject(`Project with the name "${this.project}" does not exist!`);
+            else
+                this.startAskingQuestions()
+                    .then(() => this.removeOldBuild())
+                    .then(() => this.copyElectronFiles())
+                    .then(() => this.installElectronDependancies())
+                    .then(() => this.buildElectron())
+                    .then(() => this.createBuildPackageJSON())
+                    .then(() => this.buildAngular())
+                    .then(() => this.build())
+                    .then(() => {
+                        if (!this.options.keepCompile) {
+                            this.removeOldBuild().then(() => {
+                                resolve();
+                            });
+                        } else
+                            resolve();
+                    })
+                    .catch(error => {
+                        console.log(chalk.red('ERROR'), error);
+                    });
         });
     }
 
@@ -52,6 +72,9 @@ class Build {
                 .then(() => fs.remove(path.join(process.cwd(), 'tmp')))
                 .then(() => {
                     resolve();
+                })
+                .catch(() => {
+                    resolve();
                 });
         });
     }
@@ -59,12 +82,6 @@ class Build {
     startAskingQuestions() {
         return new Promise(resolve => {
             inquirer.prompt([{
-                    type: 'confirm',
-                    name: 'asar',
-                    message: `Do you want to use ASAR while building ${this.packageJson.productName || this.packageJson.name}?`,
-                    default: true
-                },
-                {
                     type: 'list',
                     name: 'os',
                     message: 'Which platform do you want to build for?',
@@ -74,6 +91,12 @@ class Build {
                         'MacOs'
                     ],
                     default: 'Windows'
+                },
+                {
+                    type: 'confirm',
+                    name: 'asar',
+                    message: `Do you want to use ASAR while building ${this.packageJson.productName || this.packageJson.name}?`,
+                    default: true
                 }
             ]).then((answers) => {
                 this.answers = {
@@ -87,8 +110,15 @@ class Build {
 
     buildAngular() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.greenBright('ACTION'), 'Start building Angular...');
-            const ng_build = spawn('node', [ng, 'build', '--configuration=production'], {
+            console.log(chalk.greenBright('ACTION'), `Start building Angular project "${this.project}"...`);
+            const ng_build = spawn('node', [
+                ng,
+                'build',
+                this.project,
+                '--configuration=production',
+                '--outputPath=build/app',
+                '--baseHref=',
+            ], {
                 stdio: 'inherit'
             });
 
@@ -125,13 +155,21 @@ class Build {
                         const found = !!ignored.filter(x => path.replace(process.cwd(), '').substr(1).split(/[\\\/]/).indexOf(x) > -1).length;
                         if (!found) {
                             if (path.replace(process.cwd(), '').substr(1).match(/[A-Za-z0-9]{1,}\.[A-Za-z0-9]{1,}$/))
-                                console.log(chalk.greenBright('COPY'), path.replace(process.cwd(), '').substr(1), chalk.green('->'), `temp${path.replace(process.cwd(), '').substr(1).replace(/^electron/, '')}`);
+                                console.log(chalk.greenBright('COPY'), path.replace(process.cwd(), '').substr(1), chalk.green('->'), `tmp${path.replace(process.cwd(), '').substr(1).replace(/^electron/, '')}`);
                             return true;
                         } else
                             return false;
                     }
                 }))
-                .then(() => fs.copy(path.join(process.cwd(), 'electron', 'env', 'environment.prod.js'), path.join(process.cwd(), 'tmp', 'environment.js')))
+                .then(() => {
+                    let env_path = '';
+                    if (fs.existsSync(path.join(process.cwd(), 'electron', 'env', `environment.${this.project}.prod.js`)))
+                        env_path = path.join(process.cwd(), 'electron', 'env', `environment.${this.project}.prod.js`);
+                    else
+                        env_path = path.join(process.cwd(), 'electron', 'env', `environment.prod.js`);
+
+                    return fs.copy(env_path, path.join(process.cwd(), 'tmp', 'environment.js'))
+                })
                 .then(() => {
                     resolve();
                 });
@@ -247,7 +285,7 @@ class Build {
             targets: target,
             config: {
                 productName: this.packageJson.productName || this.packageJson.name,
-                artifactName: '${productName}-${version}-${os}-${arch}.${ext}',
+                artifactName: '${productName}-' + this.project + '-${version}-${os}-${arch}.${ext}',
                 directories: {
                     buildResources: 'resources',
                     app: 'build',
@@ -264,7 +302,7 @@ class Build {
                 nsis: {
                     oneClick: false,
                     allowToChangeInstallationDirectory: true,
-                    artifactName: '${productName}-setup-${version}-win.${ext}'
+                    artifactName: '${productName}-' + this.project + '-setup-${version}-win.${ext}'
                 },
                 linux: {
                     icon: fs.existsSync(path.join(process.cwd(), 'resources', 'icon-256x256.png')) ? path.join(process.cwd(), 'resources', 'icon-256x256.png') : '',

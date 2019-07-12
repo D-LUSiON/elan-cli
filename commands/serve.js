@@ -15,8 +15,8 @@ class Serve {
     }
 
     entry() {
-        // TODO: Add support for multiproject
-        console.log(chalk.greenBright('ACTION'), 'Starting ElAn live server...');
+        this.project = this.args._[1] || this.angularJson.defaultProject;
+        console.log(chalk.greenBright('ACTION'), `Starting ElAn live server${this.args._[1] ? (' for project"' + this.project + '"') : ''}...`);
         return Promise.all([
             this.electronWatch(),
             this.ngWatch(),
@@ -25,10 +25,18 @@ class Serve {
 
     ngWatch() {
         return new Promise((resolve, reject) => {
-            const ng_build = spawn('node', [ng, 'build', '--watch', '--configuration=dev'], {
+            const ng_build = spawn('node', [
+                ng,
+                'build',
+                this.project,
+                '--watch',
+                '--configuration=dev',
+                '--outputPath=./www',
+                '--baseHref='
+            ], {
                 stdio: 'inherit'
             });
-            
+
             ng_build.once('exit', (code, signal) => {
                 if (code === 0) {
                     resolve();
@@ -43,7 +51,7 @@ class Serve {
         return new Promise((resolve, reject) => {
             console.log(chalk.cyan('INFO'), 'Type "rs" to restart application');
             console.log(chalk.cyan('INFO'), `Press Ctrl-C to quit\n`);
-            
+
             nodemon([
                 '--exec electron ./electron',
                 // '--inspect',
