@@ -8,11 +8,10 @@ Tired of setting up everything up from scratch when creating your new Electron/A
 ElAn is here to help you with the whole process because it's the all-in-one solution for creating Electron applications with Angular front-end!
 
 ## Installation
-You cannot install ElAn from npm yet. But if you want to do it, here are the steps:
 
-1. Clone this repo in a directory of your choosing.
-2. Enter the directory and run **npm install**
-3. Run **npm i -g** to install it as a global dependancy on your machine
+Install ElAn as global dependancy:
+
+```npm install -g elan-cli```
 
 ## Usage
 For now you can use following commands:
