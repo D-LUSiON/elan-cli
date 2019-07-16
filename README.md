@@ -1,7 +1,5 @@
 # ElAn-CLI
 
-*WIP! RC1 is coming to town! Soon ElAn-CLI will be part of npm family! Have a little more patience :)*
-
 ## What is ElAn?
 
 Tired of setting up everything up from scratch when creating your new Electron/Angular application?
@@ -42,15 +40,16 @@ For now you can use following commands:
 - Create resources from image for compiler
 
 ## Credits
-ElAn will not be possible without all these hard working people and their open source projects:
+I'd like to thank all these hard working people and their open source projects because ElAn will not be possible without them:
 
-- Electron
-- Angular
-- Electron builder
-- Nodemon
+- [NodeJS](https://nodejs.org/)
+- [Electron](https://electronjs.org/)
+- [Angular](https://angular.io/)
+- [Electron builder](https://www.electron.build/)
+- [Nodemon](https://nodemon.io/)
 - and all other that these projects depend on...
 
 ## Issues and Contribution
 If you like what I've done so far, star the project to help it reach more people!
 
-If you have ideas or you've found bugs, use the issue tracker to share them with me!
+If you have ideas or you've found bugs, use the [issue tracker](https://github.com/D-LUSiON/elan-cli/issues) to share them with me!
