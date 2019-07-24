@@ -11,6 +11,7 @@ np.pop();
 const npm = path.join(...np, 'node_modules', 'npm', 'bin', 'npm-cli.js');
 const ng = path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng');
 const webpack = require('webpack');
+const ncp = require('ncp').ncp;
 
 class Build {
     constructor(args) {
@@ -22,8 +23,16 @@ class Build {
         this.args = args;
         this.answers = {
             asar: false,
-            target: 'Windows'
+            os: 'WINDOWS',
+            arch: ['x64'],
+            targets: {
+                WINDOWS: [{
+                    target: 'nsis',
+                    arch: ['x64']
+                }]
+            }
         };
+        this.copy_resources = true;
     }
 
     entry() {
@@ -50,6 +59,7 @@ class Build {
                     .then(() => this.installElectronDependancies())
                     .then(() => this.buildElectron())
                     .then(() => this.createBuildPackageJSON())
+                    .then(() => this.copyResources())
                     .then(() => this.buildAngular())
                     .then(() => this.build())
                     .then(() => {
@@ -80,30 +90,120 @@ class Build {
     }
 
     startAskingQuestions() {
-        return new Promise(resolve => {
+        return new Promise((resolve, reject) => {
             inquirer.prompt([{
-                    type: 'list',
+                    type: 'checkbox',
                     name: 'os',
                     message: 'Which platform do you want to build for?',
                     choices: [
                         'Windows',
                         'Linux',
-                        'MacOs'
+                        'MacOS'
                     ],
-                    default: 'Windows'
+                    // default: ['Windows'],
+                },
+                {
+                    type: 'list',
+                    name: 'arch',
+                    message: 'What architecture do you want to use?',
+                    choices: [
+                        'x64',
+                        'ia32',
+                        'All',
+                    ],
+                    default: 'x64',
+                    filter(input) {
+                        return input.toLowerCase();
+                    }
                 },
                 {
                     type: 'confirm',
                     name: 'asar',
                     message: `Do you want to use ASAR while building ${this.packageJson.productName || this.packageJson.name}?`,
                     default: true
+                },
+                {
+                    type: 'confirm',
+                    name: 'resources',
+                    message: `Do you want to use copy contents of "resources" dir to built output?`,
+                    default: true
                 }
             ]).then((answers) => {
-                this.answers = {
-                    asar: answers.asar,
-                    target: answers.os
-                };
-                resolve();
+                this.copy_resources = answers.resources;
+                delete answers.resources;
+                answers.os = answers.os.map(os => os === 'MacOS' ? 'MAC' : os.toUpperCase());
+                this.answers = { ...answers };
+
+                let target_questions = [];
+                answers.os.forEach(os => {
+                    let target_question = {
+                        type: 'checkbox',
+                        name: `${os}`,
+                        message: `Which target do you want to build for ${os === 'MAC' ? 'MacOS' : (os.charAt(0).toUpperCase() + os.substr(1))}?`,
+                        filter(input) {
+                            return input.map(answer => {
+                                return {
+                                    target: answer,
+                                    arch: answers.arch === 'all' ? ['x64', 'ia32'] : [answers.arch]
+                                }
+                            });
+                        }
+                    };
+
+                    switch (os) {
+                        case 'WINDOWS':
+                            target_question = {
+                                ...target_question,
+                                choices: [
+                                    'nsis',
+                                    'nsis-web',
+                                    'portable',
+                                    'zip',
+                                    'dir',
+                                ]
+                            };
+                            break;
+                        case 'LINUX':
+                            target_question = {
+                                ...target_question,
+                                choices: [
+                                    'AppImage',
+                                    'snap',
+                                    'deb',
+                                    'rpm',
+                                    'apk',
+                                    'zip',
+                                    'tar.gz',
+                                    'dir',
+                                ],
+                                
+                            };
+                            break;
+                        case 'MAC':
+                            target_question = {
+                                ...target_question,
+                                choices: [
+                                    'dmg',
+                                    'mas',
+                                    'mas-dev',
+                                    'zip',
+                                    'tar.gz',
+                                    'dir',
+                                ],
+                            };
+                            break;
+                    }
+                    target_questions.push(target_question);
+                });
+                
+                inquirer.prompt([
+                    ...target_questions
+                ]).then((answer) => {
+                    this.answers.targets = answer;
+                    // console.log(this.answers.targets);
+                    // reject('testing...');
+                    resolve();
+                });
             });
         });
     }
@@ -242,6 +342,7 @@ class Build {
 
     createBuildPackageJSON() {
         return new Promise((resolve, reject) => {
+            console.log(chalk.greenBright('ACTION'), `Creating build's package.json...`);
             fs.writeFile(
                 path.join(process.cwd(), 'build', 'package.json'),
                 JSON.stringify({
@@ -259,80 +360,91 @@ class Build {
         });
     }
 
+    copyResources() {
+        return new Promise((resolve, reject) => {
+            if (this.copy_resources) {
+                console.log(chalk.greenBright('ACTION'), `Copying "resources" folder to build...`);
+                ncp(path.join(process.cwd(), 'resources'), path.join(process.cwd(), 'build', 'resources'), (err) => {
+                    if (err)
+                        reject(err);
+                    else
+                        resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
+    }
+
     build() {
-        console.log(chalk.greenBright('ACTION'), `Building for ${this.answers.target}...`);
+        console.log(chalk.greenBright('ACTION'), `Building for ${this.answers.os}...`);
         const builder = require('electron-builder');
         const Platform = builder.Platform;
-
-        let target;
-        switch (this.answers.target) {
-            case 'Linux':
-                target = Platform.LINUX.createTarget();
-                break;
-            case 'macOs':
-                target = Platform.MAC.createTarget();
-                break;
-            case 'Windows':
-            default:
-                target = Platform.WINDOWS.createTarget();
-                break;
-        }
 
         if (this.args.debug)
             process.env.DEBUG = 'electron-builder';
 
-        return builder.build({
-            targets: target,
-            config: {
-                productName: this.packageJson.productName || this.packageJson.name,
-                artifactName: '${productName}-' + this.project + '-${version}-${os}-${arch}.${ext}',
-                directories: {
-                    buildResources: 'resources',
-                    app: 'build',
-                    output: `release/${this.packageJson.productName || this.packageJson.name}` + '-${version}-${os}-${arch}'
-                },
-                files: [
-                    '**/*',
+        const config = {
+            productName: this.packageJson.productName || this.packageJson.name,
+            artifactName: '${productName}-' + this.project + '-${version}-${os}-${arch}.${ext}',
+            directories: {
+                buildResources: 'resources',
+                app: 'build',
+                output: `release/${this.packageJson.productName || this.packageJson.name}-${this.project}` + '-${version}-${os}-${arch}'
+            },
+            files: [
+                '**/*',
+            ],
+            asar: this.answers.asar,
+            win: {
+                icon: fs.existsSync(path.join(process.cwd(), 'resources', 'icon.ico')) ? path.join(process.cwd(), 'resources', 'icon.ico') : '',
+                target: ['nsis', 'zip', 'portable']
+            },
+            nsis: {
+                oneClick: false,
+                allowToChangeInstallationDirectory: true,
+                artifactName: '${productName}-' + this.project + '-setup-${version}-win.${ext}'
+            },
+            linux: {
+                executableName: this.project,
+                icon: fs.existsSync(path.join(process.cwd(), 'resources', 'icon-256x256.png')) ? path.join(process.cwd(), 'resources', 'icon-256x256.png') : '',
+                category: 'Utility',
+                target: [
+                    'deb',
+                    'tar.gz',
+                    'AppImage',
+                    'dir'
                 ],
-                asar: this.answers.asar,
-                win: {
-                    icon: fs.existsSync(path.join(process.cwd(), 'resources', 'icon.ico')) ? path.join(process.cwd(), 'resources', 'icon.ico') : '',
-                    target: ['nsis', 'zip', 'portable']
-                },
-                nsis: {
-                    oneClick: false,
-                    allowToChangeInstallationDirectory: true,
-                    artifactName: '${productName}-' + this.project + '-setup-${version}-win.${ext}'
-                },
-                linux: {
-                    icon: fs.existsSync(path.join(process.cwd(), 'resources', 'icon-256x256.png')) ? path.join(process.cwd(), 'resources', 'icon-256x256.png') : '',
-                    category: '',
-                    target: [
-                        'deb',
-                        'tar.gz',
-                        // 'appimage'
-                    ],
-                },
-                mac: {
-                    category: '',
-                    target: [
-                        'zip',
-                        'dmg'
-                    ],
-                    darkModeSupport: true,
-                    extraResources: [{
-                        filter: [
-                            'LICENSE.txt',
-                            'NOTICE.txt'
-                        ]
-                    }]
-                },
-                dmg: {
-                    background: 'resources/osx/DMG_BG.png',
-                    iconSize: 140,
-                    iconTextSize: 18
-                },
-            }
+            },
+            mac: {
+                category: '',
+                target: [
+                    'zip',
+                    'dmg',
+                ],
+                darkModeSupport: true,
+                extraResources: [{
+                    filter: [
+                        'LICENSE.txt',
+                        'NOTICE.txt'
+                    ]
+                }]
+            },
+            dmg: {
+                background: 'resources/osx/DMG_BG.png',
+                iconSize: 140,
+                iconTextSize: 18
+            },
+        }
+
+        Object.keys(this.answers.targets).forEach(os => {
+            const trg = os === 'WINDOWS' ? 'win' : os.toLowerCase();
+            config[trg].target = this.answers.targets[os];
+        });
+
+        return builder.build({
+            targets: builder.createTargets(this.answers.os.map(os => Platform[os]), null, this.answers.arch),
+            config: config
         });
     }
 }

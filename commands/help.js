@@ -20,7 +20,6 @@ class Help {
     showHelp() {
         return new Promise(resolve => {
             if (!this.args || !this.args._ || !this.args._[1]) {
-                // TODO: collect all command controllers and show their help
                 const shown_commands = [];
                 fs.readdir(__dirname, (err, files) => {
                     if (err)
