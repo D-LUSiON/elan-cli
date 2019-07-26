@@ -501,6 +501,9 @@ class Init {
                     ['/dist-*', '/build', '/www-*', '/www', '/release'].forEach(exception => {
                         gitignore.splice(idx, 0, exception);
                     });
+
+                    const node_modules_idx = gitignore.findIndex(x => x.match(/node_modules/));
+                    gitignore[node_modules_idx] = '/**/node_modules/**/*';
                     fs.writeFile(path.join(process.cwd(), this.elan_options.package.name, '.gitignore'), gitignore.join(`\n`), 'utf8', (err) => {
                         if (err) {
                             reject(err);

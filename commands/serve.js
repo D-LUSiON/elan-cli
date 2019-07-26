@@ -13,8 +13,9 @@ class Serve {
         this.options = [];
         this.args = args;
     }
-
+    
     entry() {
+        this.angularJson = require(path.join(process.cwd(), 'angular.json'));
         this.project = this.args._[1] || this.angularJson.defaultProject;
         console.log(chalk.greenBright('ACTION'), `Starting ElAn live server${this.args._[1] ? (' for project"' + this.project + '"') : ''}...`);
         return Promise.all([

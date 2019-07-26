@@ -1,4 +1,5 @@
 const fs = require('fs-extra');
+const FileOps = require('../lib/file-ops');
 const path = require('path');
 const {
     spawn
@@ -56,9 +57,11 @@ class Build {
                 this.startAskingQuestions()
                     .then(() => this.removeOldBuild())
                     .then(() => this.copyElectronFiles())
-                    .then(() => this.installElectronDependancies())
-                    .then(() => this.buildElectron())
+                    .then(() => this.installElectronDependencies())
                     .then(() => this.createBuildPackageJSON())
+                    .then(() => this.buildElectron())
+                    .then(() => this.installElectronAppDeps())
+                    .then(() => this.rebuildElectronNativeModules())
                     .then(() => this.copyResources())
                     .then(() => this.buildAngular())
                     .then(() => this.build())
@@ -276,9 +279,9 @@ class Build {
         });
     }
 
-    installElectronDependancies() {
+    installElectronDependencies() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.greenBright('ACTION'), `Installing Electron dependancies...`);
+            console.log(chalk.greenBright('ACTION'), `Installing Electron dependencies...`);
 
             const package_json = require(path.join(process.cwd(), 'tmp', 'package.json'));
             delete package_json.devDependencies;
@@ -301,17 +304,82 @@ class Build {
         });
     }
 
+    createBuildPackageJSON() {
+        return new Promise((resolve, reject) => {
+            console.log(chalk.greenBright('ACTION'), `Creating build's package.json...`);
+            const package_json = {
+                name: this.packageJson.name,
+                productName: this.packageJson.productName,
+                version: this.packageJson.version,
+                description: this.packageJson.description,
+                author: this.packageJson.author,
+                main: 'main.js',
+                dependencies: {}
+            };
+
+            const tmp_package_json = require(path.join(process.cwd(), 'tmp', 'package.json'));
+            
+            Object.keys(tmp_package_json.dependencies || {}).forEach(dep => {
+                const found = FileOps.recursiveFindByExt(path.join(process.cwd(), 'tmp', 'node_modules', dep), 'node');
+                if (found.length)
+                    package_json.dependencies[dep] = tmp_package_json.dependencies[dep];
+            });
+
+            if (!fs.existsSync(path.join(process.cwd(), 'build')))
+                fs.mkdirSync(path.join(process.cwd(), 'build'));
+
+            fs.writeFile(
+                path.join(process.cwd(), 'build', 'package.json'),
+                JSON.stringify(package_json, null, 2),
+                'utf8'
+            ).then(() => {
+                resolve();
+            });
+        });
+    }
+
     buildElectron() {
         return new Promise((resolve, reject) => {
             console.log(chalk.greenBright('ACTION'), 'Webpacking Electron...');
+            const build_package_json = require(path.join(process.cwd(), 'build', 'package.json'));
+            const nodeExternals = require('webpack-node-externals');
+            const emptyModule = path.join(__dirname, '..', 'lib', 'empty_module.js');
+            console.log(`emptyModule: ${emptyModule}`, path.resolve(__dirname, '..', 'lib', 'empty_module.js'));
+            
             webpack({
                 target: 'electron-main',
                 entry: './tmp/main.js',
                 output: {
                     path: path.join(process.cwd(), 'build'),
-                    filename: 'main.js'
+                    filename: 'main.js',
+                    // libraryTarget: 'commonjs',
                 },
-                mode: 'production'
+                mode: 'production',
+                module: {
+
+                //     rules: [{
+                //         test: /\.node$/,
+                //         use: 'node-loader'
+                //     }]
+                },
+                resolve: {
+                    alias: {
+                        pg: emptyModule,
+                        sqlite3: emptyModule,
+                        'pg-hstore': emptyModule,
+                        tedious: emptyModule,
+                    },
+                },
+                externals: [
+                    // nodeExternals(),
+                    (context, request, callback) => {
+                        if (build_package_json.dependencies[request]) {
+                            console.log(`"${chalk.yellow(request)}" is native module, ignoring...`);
+                            return callback(null, `commonjs ${request}`);
+                        }
+                        callback();
+                    }
+                ],
             }).run((err, stats) => {
                 if (err) {
                     console.error(err.stack || err);
@@ -340,26 +408,6 @@ class Build {
         });
     }
 
-    createBuildPackageJSON() {
-        return new Promise((resolve, reject) => {
-            console.log(chalk.greenBright('ACTION'), `Creating build's package.json...`);
-            fs.writeFile(
-                path.join(process.cwd(), 'build', 'package.json'),
-                JSON.stringify({
-                    name: this.packageJson.name,
-                    productName: this.packageJson.productName,
-                    version: this.packageJson.version,
-                    description: this.packageJson.description,
-                    author: this.packageJson.author,
-                    main: 'main.js'
-                }, null, 2),
-                'utf8'
-            ).then(() => {
-                resolve();
-            });
-        });
-    }
-
     copyResources() {
         return new Promise((resolve, reject) => {
             if (this.copy_resources) {
@@ -369,6 +417,47 @@ class Build {
                         reject(err);
                     else
                         resolve();
+                });
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    installElectronAppDeps() {
+        return new Promise((resolve, reject) => {
+            if (fs.existsSync(path.join(process.cwd(), 'build', 'node_modules'))) {
+                console.log(chalk.greenBright('ACTION'), `Installing Electron application dependencies...`);
+                const install_app_deps = spawn(path.join(__dirname, '..', 'node_modules', '.bin', 'electron-builder.cmd'), ['install-app-deps'], {
+                    cwd: path.join(process.cwd(), 'build'),
+                    stdio: 'inherit'
+                });
+                install_app_deps.once('exit', (code, signal) => {
+                    console.log(`Installing Electron application dependencies`, code, signal);
+                    if (code === 0)
+                        resolve();
+                    else
+                        process.exit(code);
+                });
+            } else {
+                resolve();
+            }
+        });
+    }
+
+    rebuildElectronNativeModules() {
+        return new Promise((resolve, reject) => {
+            if (fs.existsSync(path.join(process.cwd(), 'build', 'node_modules'))) {
+                console.log(chalk.greenBright('ACTION'), `Rebuilding Electron native modules...`);
+                const electron_rebuild = spawn(path.join(__dirname, '..', 'node_modules', '.bin', 'electron-rebuild.cmd'), ['-f'], {
+                    cwd: path.join(process.cwd(), 'build'),
+                    stdio: 'inherit'
+                });
+                electron_rebuild.once('exit', (code, signal) => {
+                    if (code === 0)
+                        resolve();
+                    else
+                        process.exit(code);
                 });
             } else {
                 resolve();
