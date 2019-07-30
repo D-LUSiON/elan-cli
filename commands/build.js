@@ -302,7 +302,7 @@ class Build {
         return new Promise((resolve, reject) => {
             if (fs.existsSync(path.join(process.cwd(), dirname, 'node_modules'))) {
                 console.log(chalk.greenBright('ACTION'), `Installing Electron application dependencies in "${dirname}"...`);
-                const install_app_deps = spawn(path.join(__dirname, '..', 'node_modules', '.bin', 'electron-builder.cmd'), ['install-app-deps'], {
+                const install_app_deps = spawn('node', [path.join(__dirname, '..', 'node_modules', 'electron-builder', 'out', 'cli', 'cli.js'), 'install-app-deps'], {
                     cwd: path.join(process.cwd(), dirname),
                     stdio: 'inherit'
                 });
@@ -323,7 +323,7 @@ class Build {
         return new Promise((resolve, reject) => {
             if (fs.existsSync(path.join(process.cwd(), dirname, 'node_modules'))) {
                 console.log(chalk.greenBright('ACTION'), `Rebuilding Electron native modules in "${dirname}"...`);
-                const electron_rebuild = spawn(path.join(__dirname, '..', 'node_modules', '.bin', 'electron-rebuild.cmd'), ['-f'], {
+                const electron_rebuild = spawn('node', [path.join(__dirname, '..', 'node_modules', 'electron-rebuild', 'lib', 'src', 'cli.js'), '-f'], {
                     cwd: path.join(process.cwd(), dirname),
                     stdio: 'inherit'
                 });
