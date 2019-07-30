@@ -7,9 +7,7 @@ const {
 const chalk = require('chalk');
 const inquirer = require('inquirer');
 
-const np = process.argv[0].split(/[\\\/]/g);
-np.pop();
-const npm = path.join(...np, 'node_modules', 'npm', 'bin', 'npm-cli.js');
+const npm = getInstalledPathSync('npm');
 const ng = path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng');
 const webpack = require('webpack');
 const ncp = require('ncp').ncp;
