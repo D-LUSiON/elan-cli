@@ -2,8 +2,6 @@ const fs = require('fs-extra');
 const chalk = require('chalk');
 const loadingSpinner = require('loading-spinner');
 
-const sharp = require('sharp'); // image processing library 
-
 class Resources {
     constructor(args) {
         this.description = 'Builds app resources - mainly images and icons (not implemented yet)';
