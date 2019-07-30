@@ -40,8 +40,7 @@
     "node-loader": "^0.6.0",
     "nodemon": "^1.19.1",
     "simple-git": "^1.121.0",
-    "webpack": "^4.35.3",
-    "webpack-node-externals": "^1.7.2"
+    "webpack": "^4.35.3"
   },
   "devDependencies": {
     "codelyzer": "^5.0.1"
