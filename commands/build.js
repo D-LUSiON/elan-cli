@@ -33,6 +33,8 @@ class Build {
             }
         };
         this.copy_resources = true;
+        this.timer_start;
+        this.timer_end;
     }
 
     entry() {
@@ -54,6 +56,7 @@ class Build {
                 reject(`Project with the name "${this.project}" does not exist!`);
             else
                 this.startAskingQuestions()
+                    .then(() => this.startTimer())
                     .then(() => this.removeOldBuild())
                     .then(() => this.copyElectronFiles())
                     .then(() => this.modifyTmpPackageJson())
@@ -68,9 +71,11 @@ class Build {
                     .then(() => this.copyResources())
                     .then(() => this.buildAngular())
                     .then(() => this.build())
+                    .then(() => this.endTimer())
                     .then(() => {
                         if (!this.options.keepCompile) {
                             this.removeOldBuild().then(() => {
+                                console.log(`\n`, chalk.rgb(255, 165, 0)('INFO'), `Build process is complete! It took ${(this.timer_end.getTime() - this.timer_start.getTime())/1000} seconds.`);
                                 resolve();
                             });
                         } else
@@ -79,6 +84,20 @@ class Build {
                     .catch(error => {
                         console.log(chalk.red('ERROR'), error);
                     });
+        });
+    }
+
+    startTimer() {
+        return new Promise((resolve, reject) => {
+            this.timer_start = new Date();
+            resolve();
+        });
+    }
+    
+    endTimer() {
+        return new Promise((resolve, reject) => {
+            this.timer_end = new Date();
+            resolve();
         });
     }
 
