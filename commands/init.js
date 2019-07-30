@@ -2,13 +2,11 @@ const path = require('path');
 const fs = require('fs-extra');
 const inquirer = require('inquirer');
 const chalk = require('chalk');
-const exec = require('child_process').exec;
-const spawn = require('child_process').spawn;
-const ncp = require('ncp').ncp; // Recursive copying
+const { exec, spawn } = require('child_process');
+const { ncp } = require('ncp'); // Recursive copying
+const { getInstalledPathSync } = require('get-installed-path');
 
-const np = process.argv[0].split(/[\\\/]/g);
-np.pop();
-const npm = path.join(...np, 'node_modules', 'npm', 'bin', 'npm-cli.js');
+const npm = getInstalledPathSync('npm');
 
 class Init {
     constructor(args) {
