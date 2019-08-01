@@ -76,11 +76,13 @@ class Build {
                     .then(() => {
                         if (!this.options.keepCompile) {
                             this.removeOldBuild().then(() => {
-                                console.log(`\n`, chalk.rgb(255, 165, 0)('INFO'), `Build process is complete! It took ${(this.timer_end.getTime() - this.timer_start.getTime())/1000} seconds.`);
+                                this.calculateElapsedTime();
                                 resolve();
                             });
-                        } else
+                        } else {
+                            this.calculateElapsedTime();
                             resolve();
+                        }
                     })
                     .catch(error => {
                         console.log(chalk.red('ERROR'), error);
@@ -100,6 +102,13 @@ class Build {
             this.timer_end = new Date();
             resolve();
         });
+    }
+
+    calculateElapsedTime() {
+        const time = (this.timer_end.getTime() - this.timer_start.getTime());
+        const minutes = Math.floor(time / 1000 / 60);
+        const seconds = ((time / 1000) - (minutes * 60)).toFixed(3);
+        console.log(`\n`, chalk.rgb(255, 165, 0)('INFO'), `Build process is complete! It took ${minutes} minutes and ${seconds} seconds.`);
     }
 
     removeOldBuild() {
