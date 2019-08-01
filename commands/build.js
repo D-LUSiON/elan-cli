@@ -288,7 +288,7 @@ class Build {
                         const found = !!ignored.filter(x => path.replace(process.cwd(), '').substr(1).split(/[\\\/]/).indexOf(x) > -1).length;
                         if (!found) {
                             if (path.replace(process.cwd(), '').substr(1).match(/[A-Za-z0-9]{1,}\.[A-Za-z0-9]{1,}$/))
-                                console.log(chalk.greenBright('COPY'), path.replace(process.cwd(), '').substr(1), chalk.green('->'), `tmp${path.replace(process.cwd(), '').substr(1).replace(/^electron/, '')}`);
+                                console.log(chalk.greenBright('COPY'), path.replace(process.cwd(), '').substr(1), chalk.green('->'), `tmp${path.replace(process.cwd(), '').substr(1).replace(/^electron/, '')} (${fs.statSync(path).size} bytes)`);
                             return true;
                         } else
                             return false;
@@ -399,16 +399,12 @@ class Build {
             const tmp_package_json = require(path.join(process.cwd(), 'tmp', 'package.json'));
             
             Object.keys(tmp_package_json.dependencies || {}).forEach(dep => {
-                // const found_ext_node = FileOps.recursiveFindByExt(path.join(process.cwd(), 'tmp', 'node_modules', dep), 'node');
-                // const found_dir_bin = FileOps.recursiveFindDir(path.join(process.cwd(), 'tmp', 'node_modules', dep), ['bin', '.bin']);
-                if (
-                    // found_ext_node.length || found_dir_bin.length ||
-                    (this.elanJson.blacklist || []).includes(dep)
-                ) {
-                    console.log(chalk.rgb(255, 165, 0)('INFO'), `Ignoring following modules that were added in blacklist:\n    ${this.elanJson.blacklist.map(x => chalk.rgb(255, 165, 0)('"' + x + '"')).join(', ')}`);
+                if ((this.elanJson.blacklist || []).includes(dep))
                     package_json.dependencies[dep] = tmp_package_json.dependencies[dep];
-                }
             });
+
+            if (Object.keys(package_json.dependencies).length)
+                console.log(chalk.rgb(255, 165, 0)('INFO'), `Following modules that were added in blacklist will be added as native dependencies:\n    ${Object.keys(package_json.dependencies).map(x => chalk.rgb(255, 165, 0)('"' + x + '"')).join(',\n    ')}`);
 
             if (!fs.existsSync(path.join(process.cwd(), 'build')))
                 fs.mkdirSync(path.join(process.cwd(), 'build'));
