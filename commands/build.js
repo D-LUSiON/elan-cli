@@ -46,6 +46,7 @@ class Build {
 
         this.packageJson = require(path.join(process.cwd(), 'package.json'));
         this.angularJson = require(path.join(process.cwd(), 'angular.json'));
+        this.elanJson = require(path.join(process.cwd(), 'elan.json'));
         this.project = this.args._[1] || this.angularJson.defaultProject;
         
         if (this.args._[1])
@@ -389,10 +390,15 @@ class Build {
             const tmp_package_json = require(path.join(process.cwd(), 'tmp', 'package.json'));
             
             Object.keys(tmp_package_json.dependencies || {}).forEach(dep => {
-                const found_ext_node = FileOps.recursiveFindByExt(path.join(process.cwd(), 'tmp', 'node_modules', dep), 'node');
-                const found_dir_bin = FileOps.recursiveFindDir(path.join(process.cwd(), 'tmp', 'node_modules', dep), ['bin', '.bin']);
-                if (found_ext_node.length || found_dir_bin.length || ['sequelize', 'pg', 'pg-hstore', 'mysql2', 'mariadb', 'sqlite3', 'tedious'].includes(dep))
+                // const found_ext_node = FileOps.recursiveFindByExt(path.join(process.cwd(), 'tmp', 'node_modules', dep), 'node');
+                // const found_dir_bin = FileOps.recursiveFindDir(path.join(process.cwd(), 'tmp', 'node_modules', dep), ['bin', '.bin']);
+                if (
+                    // found_ext_node.length || found_dir_bin.length ||
+                    (this.elanJson.blacklist || []).includes(dep)
+                ) {
+                    console.log(chalk.rgb(255, 165, 0)('INFO'), `Ignoring following modules that were added in blacklist:\n    ${this.elanJson.blacklist.map(x => chalk.rgb(255, 165, 0)('"' + x + '"')).join(', ')}`);
                     package_json.dependencies[dep] = tmp_package_json.dependencies[dep];
+                }
             });
 
             if (!fs.existsSync(path.join(process.cwd(), 'build')))

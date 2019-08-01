@@ -14,7 +14,7 @@ class Init {
         this.usage = '$ elan init [project-name] [options]';
         this.aliases = 'init';
         this.args = args;
-        this.elan_options = {};
+        this.elan_options = { blacklist: [] };
         this.angular_options = {};
         this.electron_options = {};
         this.package_json_options = {};
