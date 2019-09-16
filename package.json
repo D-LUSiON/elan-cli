@@ -25,12 +25,12 @@
   },
   "homepage": "https://github.com/D-LUSiON/elan-cli#readme",
   "dependencies": {
-    "@angular/cli": "^8.3.1",
+    "@angular/cli": "^8.3.4",
     "chalk": "^2.4.2",
-    "electron": "^6.0.5",
+    "electron": "^6.0.9",
     "electron-builder": "^20.44.4",
     "electron-rebuild": "^1.8.6",
-    "figlet": "^1.2.3",
+    "figlet": "^1.2.4",
     "fs-extra": "^8.1.0",
     "get-installed-path": "^4.0.8",
     "inquirer": "^6.5.0",
@@ -38,11 +38,11 @@
     "minimist": "^1.2.0",
     "ncp": "^2.0.0",
     "node-loader": "^0.6.0",
-    "nodemon": "^1.19.1",
-    "simple-git": "^1.121.0",
-    "webpack": "^4.35.3"
+    "nodemon": "^1.19.2",
+    "simple-git": "^1.126.0",
+    "webpack": "^4.40.2"
   },
   "devDependencies": {
-    "codelyzer": "^5.0.1"
+    "codelyzer": "^5.1.0"
   }
 }
