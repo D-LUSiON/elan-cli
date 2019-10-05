@@ -16,9 +16,11 @@ const ncp = require('ncp').ncp;
 class Build {
     constructor(args) {
         this.description = 'Starts build process';
-        this.usage = '$ elan bld [project] [,options]';
+        this.usage = '$ elan build [project] [,options]';
         this.options = {
-            keepCompile: false
+            keepCompile: false,
+            prod: false,
+            production: false
         };
         this.args = args;
         this.answers = {
@@ -50,7 +52,7 @@ class Build {
         this.project = this.args._[1] || this.angularJson.defaultProject;
         
         if (this.args._[1])
-            console.log(chalk.greenBright('ACTION'), `Building project "${this.project}"...`);
+            console.log(chalk.greenBright('ACTION'), `Building project "${this.project}" with "${(this.options.prod || this.options.production) ? 'prod' : 'debug'}" environment...`);
 
         return new Promise((resolve, reject) => {
             if (!this.angularJson.projects[this.project])
@@ -85,7 +87,7 @@ class Build {
                         }
                     })
                     .catch(error => {
-                        console.log(chalk.red('ERROR'), error);
+                        reject(error);
                     });
         });
     }
@@ -108,7 +110,7 @@ class Build {
         const time = (this.timer_end.getTime() - this.timer_start.getTime());
         const minutes = Math.floor(time / 1000 / 60);
         const seconds = ((time / 1000) - (minutes * 60)).toFixed(3);
-        console.log(`\n`, chalk.rgb(255, 165, 0)('INFO'), `Build process is complete! It took ${minutes} minutes and ${seconds} seconds.`);
+        console.log(`\n`, chalk.rgb(0, 128, 255)('INFO'), `Build process is complete! It took ${minutes} minutes and ${seconds} seconds.`);
     }
 
     removeOldBuild() {
@@ -160,7 +162,7 @@ class Build {
                 {
                     type: 'confirm',
                     name: 'resources',
-                    message: `Do you want to use copy contents of "resources" dir to built output?`,
+                    message: `Do you want to use copy contents of "resources" dir to build output?`,
                     default: true
                 }
             ]).then((answers) => {
@@ -244,12 +246,13 @@ class Build {
     buildAngular() {
         return new Promise((resolve, reject) => {
             console.log(chalk.greenBright('ACTION'), `Start building Angular project "${this.project}"...`);
+            const environment = require(path.join(process.cwd(), 'tmp', 'environment.js'));
             const ng_build = spawn('node', [
                 ng,
                 'build',
                 this.project,
-                '--configuration=production',
-                '--outputPath=build/app',
+                `--configuration=${this.options.prod || this.options.production ? 'production' : 'dev'}`,
+                `--outputPath=build/${environment.html_src}`,
                 '--baseHref=',
             ], {
                 stdio: 'inherit'
@@ -261,7 +264,7 @@ class Build {
                         resolve();
                     });
                 } else {
-                    process.exit(code);
+                    reject(signal);
                 }
             });
         });
@@ -296,10 +299,12 @@ class Build {
                 }))
                 .then(() => {
                     let env_path = '';
-                    if (fs.existsSync(path.join(process.cwd(), 'electron', 'env', `environment.${this.project}.prod.js`)))
-                        env_path = path.join(process.cwd(), 'electron', 'env', `environment.${this.project}.prod.js`);
-                    else
+                    if (fs.existsSync(path.join(process.cwd(), 'electron', 'env', `environment.${this.project}.${(this.options.prod || this.options.production) ? 'prod' : 'debug'}.js`)))
+                        env_path = path.join(process.cwd(), 'electron', 'env', `environment.${this.project}.${(this.options.prod || this.options.production) ? 'prod' : 'debug'}.js`);
+                    else {
+                        console.warn(chalk.rgb(255, 165, 0)('COPY'), `Environment file "${path.join('.', 'electron', 'env', `environment.${this.project}.${(this.options.prod || this.options.production) ? 'prod' : 'debug'}.js`)}" is missing! Falling back to "${path.join('.', 'electron', 'env', `environment.prod.js`)}"...`)
                         env_path = path.join(process.cwd(), 'electron', 'env', `environment.prod.js`);
+                    }
 
                     return fs.copy(env_path, path.join(process.cwd(), 'tmp', 'environment.js'))
                 })
@@ -321,7 +326,7 @@ class Build {
                 if (code === 0)
                     resolve();
                 else
-                    process.exit(code);
+                    reject(signal);
             });
         });
     }
@@ -339,7 +344,7 @@ class Build {
                     if (code === 0)
                         resolve();
                     else
-                        process.exit(code);
+                        reject(signal);
                 });
             } else {
                 resolve();
@@ -360,7 +365,7 @@ class Build {
                     if (code === 0)
                         resolve();
                     else
-                        process.exit(code);
+                        reject(signal);
                 });
             } else {
                 resolve();
@@ -404,7 +409,7 @@ class Build {
             });
 
             if (Object.keys(package_json.dependencies).length)
-                console.log(chalk.rgb(255, 165, 0)('INFO'), `Following modules that were added in blacklist will be added as native dependencies:\n    ${Object.keys(package_json.dependencies).map(x => chalk.rgb(255, 165, 0)('"' + x + '"')).join(',\n    ')}`);
+                console.log(chalk.rgb(0, 128, 255)('INFO'), `Following modules that were added in blacklist will be added as native dependencies:\n    ${Object.keys(package_json.dependencies).map(x => chalk.rgb(255, 165, 0)('"' + x + '"')).join(',\n    ')}`);
 
             if (!fs.existsSync(path.join(process.cwd(), 'build')))
                 fs.mkdirSync(path.join(process.cwd(), 'build'));
@@ -442,20 +447,21 @@ class Build {
                 ],
             }).run((err, stats) => {
                 if (err) {
-                    console.error(err.stack || err);
+                    console.error(err.stack || (err instanceof Array ? err.join('\n') : err));
                     if (err.details) {
                         console.error(err.details);
                     }
-                    reject(err);
+                    reject(err instanceof Array ? err.join('\n') : err);
                 }
 
                 const info = stats.toJson();
 
                 if (stats.hasErrors()) {
                     console.error(info.errors);
-                    reject(info.errors);
+                    reject(info.errors instanceof Array ? info.errors.join('\n') : info.errors);
                 } else if (stats.hasWarnings()) {
-                    console.warn(info.warnings);
+                    console.log(chalk.rgb(255, 128, 0)('WARNING'), '\n', info.warnings.join('\n'));
+                    resolve();
                 } else {
                     console.log(stats.toString({
                         assets: false,
@@ -494,11 +500,11 @@ class Build {
 
         const config = {
             productName: this.packageJson.productName || this.packageJson.name,
-            artifactName: '${productName}-' + (this.project === this.packageJson.name ? '' : (this.project + '-')) + '${version}-${os}-${arch}.${ext}',
+            artifactName: '${productName}-' + (this.project === this.packageJson.name ? '' : (this.project + '-')) + '${version}-${os}-${arch}' + `-${(this.options.prod || this.options.production) ? 'prod' : 'debug'}` + '.${ext}',
             directories: {
                 buildResources: 'resources',
                 app: 'build',
-                output: `release/${this.packageJson.productName || this.packageJson.name}-${this.project === this.packageJson.name ? '' : (this.project + '-')}` + '${version}-${os}-${arch}'
+                output: `release/${this.packageJson.productName || this.packageJson.name}-${this.project === this.packageJson.name ? '' : (this.project + '-')}` + '${version}-${os}-${arch}' + `-${(this.options.prod || this.options.production) ? 'prod' : 'debug'}`
             },
             files: [
                 '**/*',
@@ -511,7 +517,7 @@ class Build {
             nsis: {
                 oneClick: false,
                 allowToChangeInstallationDirectory: true,
-                artifactName: '${productName}-' + (this.project === this.packageJson.name ? '' : (this.project + '-')) + '-setup-${version}-win.${ext}'
+                artifactName: '${productName}-' + (this.project === this.packageJson.name ? '' : (this.project + '-')) + 'setup-${version}-win' + `-${(this.options.prod || this.options.production) ? 'prod' : 'debug'}` + '.${ext}'
             },
             linux: {
                 executableName: this.project,

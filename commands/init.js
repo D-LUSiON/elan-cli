@@ -32,7 +32,7 @@ class Init {
                             resolve();
                         })
                         .catch(error => {
-                            console.log(chalk.red('ERROR'), error);
+                            reject(error);
                         });
                 } else {
                     if (fs.existsSync(path.join(process.cwd(), this.args._[1], 'elan.json'))) {
@@ -57,7 +57,7 @@ class Init {
                             resolve();
                         })
                         .catch(error => {
-                            console.log(chalk.red('ERROR'), error);
+                            reject(error);
                         });
                 } else {
                     // TODO: initialize elan.json (like `npm init`)
@@ -197,7 +197,7 @@ class Init {
                     resolve();
                 })
                 .catch(error => {
-                    console.log(chalk.red('ERROR'), error);
+                    reject(error);
                 });
         });
     }
@@ -230,10 +230,10 @@ class Init {
                             resolve();
                         })
                         .catch(error => {
-                            console.log(chalk.red('ERROR'), error);
+                            reject(error);
                         });
                 } else {
-                    process.exit(code);
+                    reject(signal);
                 }
             });
         });
@@ -259,7 +259,7 @@ class Init {
                 this._modifyElectronPackageJSON().then(() => {
                     resolve();
                 }).catch(error => {
-                    console.log(chalk.red('ERROR'), error);
+                    reject(error);
                 });
             });
         });
@@ -492,7 +492,6 @@ class Init {
             fs.readFile(path.join(process.cwd(), this.elan_options.package.name, '.gitignore'), (err, buffer) => {
                 if (err) {
                     reject(err);
-                    process.exit(1);
                 } else {
                     const gitignore = buffer.toString().split(/\n/);
                     const idx = gitignore.findIndex(x => x === '# compiled output') + 1;
@@ -505,7 +504,6 @@ class Init {
                     fs.writeFile(path.join(process.cwd(), this.elan_options.package.name, '.gitignore'), gitignore.join(`\n`), 'utf8', (err) => {
                         if (err) {
                             reject(err);
-                            process.exit(1);
                         } else
                             resolve();
                     });
@@ -526,7 +524,7 @@ class Init {
                     if (code === 0)
                         resolve();
                     else
-                        process.exit(code);
+                        reject(signal);
                 });
             } else {
                 console.log(chalk.rgb(255, 128, 0)('SKIP'), `Skipping installation of Angular dependancies...`);
@@ -544,7 +542,7 @@ class Init {
                         if (code === 0)
                             resolve();
                         else
-                            process.exit(code);
+                            reject(signal);
                     });
                 } else {
                     console.log(chalk.rgb(255, 128, 0)('SKIP'), `Skipping installation of Electron dependancies...`);
