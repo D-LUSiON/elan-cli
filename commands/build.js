@@ -1,5 +1,4 @@
 const fs = require('fs-extra');
-const FileOps = require('../lib/file-ops');
 const path = require('path');
 const {
     spawn
@@ -11,12 +10,18 @@ const { getInstalledPathSync } = require('get-installed-path');
 const npm = getInstalledPathSync('npm');
 const ng = path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng');
 const webpack = require('webpack');
-const ncp = require('ncp').ncp;
+const { ncp } = require('ncp'); // Recursive copying
 
 class Build {
     constructor(args) {
         this.description = 'Starts build process';
         this.usage = '$ elan build [project] [,options]';
+        this.usage_options = [
+            {
+                option: '--prod or --production',
+                description: 'Builds the project using "environment.prod.js" environment (if options is not provided, it uses "environment.debug.js")'
+            }
+        ];
         this.options = {
             keepCompile: false,
             prod: false,

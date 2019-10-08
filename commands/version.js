@@ -8,6 +8,7 @@ class Version {
     constructor() {
         this.description = 'Shows version of the project, Electron and Angular';
         this.usage = '$ elan version';
+        this.usage_options = [];
         this.options = [];
     }
 

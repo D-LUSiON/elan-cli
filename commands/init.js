@@ -12,7 +12,8 @@ class Init {
     constructor(args) {
         this.description = 'Starts a new project';
         this.usage = '$ elan init [project-name] [options]';
-        this.aliases = 'init';
+        this.usage_options = [];
+        this.aliases = 'new';
         this.args = args;
         this.elan_options = { blacklist: [] };
         this.angular_options = {};

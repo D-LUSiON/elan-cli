@@ -2,7 +2,6 @@ const {
     spawn
 } = require('child_process');
 const nodemon = require('nodemon');
-const fs = require('fs-extra');
 const path = require('path');
 const chalk = require('chalk');
 const ng = path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng');
@@ -11,6 +10,7 @@ class Serve {
     constructor(args) {
         this.description = 'Starts a development server';
         this.usage = '$ elan serve [project] [,options]';
+        this.usage_options = [];
         this.options = [];
         this.args = args;
     }
