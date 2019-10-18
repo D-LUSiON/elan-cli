@@ -16,11 +16,11 @@ For now you can use following commands:
 
 **elan init [your-project-name]** - creates a new project and setups it
 
-**elan serve** - starts dev environment so you can develop your app
+**elan serve [?project-name]** - starts dev environment so you can develop your app
 
-**elan build** - builds the app for production
+**elan build [?project-name]** - builds the app for production
 
-**elan help** - displays help on commands
+**elan help [?command]** - displays help on commands
 
 **elan version** - displays versions of globaly installed ElAn, Electron and Angular CLI
 
@@ -38,6 +38,7 @@ For now you can use following commands:
 - Write proper documentation
 - Init Angular multi-project
 - Create resources from image for compiler
+- Initialize with template (like Ionic)
 
 ## Credits
 I'd like to thank all these hard working people and their open source projects because ElAn will not be possible without them:

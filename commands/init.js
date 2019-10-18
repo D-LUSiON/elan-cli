@@ -10,12 +10,17 @@ const npm = getInstalledPathSync('npm');
 
 class Init {
     constructor(args) {
-        this.description = 'Starts a new project';
-        this.usage = '$ elan init [project-name] [options]';
+        this.description = `Starts a new project in a specified folder`;
+        this.usage = '$ elan init [project-folder-name] [options]';
         this.usage_options = [];
         this.aliases = 'new';
         this.args = args;
-        this.elan_options = { blacklist: [] };
+        this.create_in_folder = this.args._[1] || '';
+        this.elan_options = {
+            blacklist: [],
+            package: {},
+            angular: {},
+        };
         this.angular_options = {};
         this.electron_options = {};
         this.package_json_options = {};
@@ -25,7 +30,7 @@ class Init {
     entry() {
         return new Promise((resolve, reject) => {
             if (this.args._[1]) {
-                if (!fs.existsSync(path.join(process.cwd(), this.args._[1]))) {
+                if (!fs.existsSync(path.join(process.cwd(), this.create_in_folder))) {
                     this.askGeneralQuestions()
                         .then(() => this.askAngularQuestions())
                         .then(() => this.setupAll())
@@ -36,7 +41,7 @@ class Init {
                             reject(error);
                         });
                 } else {
-                    if (fs.existsSync(path.join(process.cwd(), this.args._[1], 'elan.json'))) {
+                    if (fs.existsSync(path.join(process.cwd(), this.create_in_folder, 'elan.json'))) {
                         console.log(chalk.cyan('INFO'), `ElAn configuration exist in this folder! Starting from it...`);
                         this.elan_options.package.name = this.args._[1];
                         // TODO: Check if the whole project exists
@@ -46,7 +51,32 @@ class Init {
                                 resolve();
                             });
                     } else {
-                        reject(`Folder with the name "${this.args._[1]}" already exists and is not ElAn project!`);
+                        fs.readdir(path.join(process.cwd(), this.create_in_folder), (err, files) => {
+                            if (files.filter(file => file !== '.git').length === 0) {
+                                inquirer.prompt([{
+                                    type: 'confirm',
+                                    name: 'overwrite',
+                                    message: `Folder "${this.args._[1]}" exists but appears to be empty. Do you want to use it for your project?`,
+                                    default: false
+                                }, ]).then(answer => {
+                                    if (answer.overwrite) {
+                                        this.askGeneralQuestions()
+                                            .then(() => this.askAngularQuestions())
+                                            .then(() => this.setupAll())
+                                            .then(() => {
+                                                resolve();
+                                            })
+                                            .catch(error => {
+                                                reject(error);
+                                            });
+                                    } else {
+                                        resolve();
+                                    }
+                                });
+                            } else {
+                                reject(`Folder with the name "${this.args._[1]}" already exists but it's not an empty folder or it's not ElAn project!`);
+                            }
+                        });
                     }
                 }
             } else {
@@ -121,6 +151,9 @@ class Init {
                     this.elan_options.package = {
                         ...general_answers
                     };
+
+                    if (!this.create_in_folder) this.create_in_folder = this.elan_options.package.name;
+
                     rslv();
                 });
             }).then(() => {
@@ -190,7 +223,7 @@ class Init {
                 .then(() => this._createEditorConfig())
                 .then(() => this._commitChanges())
                 .then(() => {
-                    console.log(chalk.greenBright(`\nProject "${this.elan_options.package.name}" initialized successfuly!\n\n`));
+                    console.log(chalk.greenBright(`\nProject "${this.elan_options.package.name}" initialized successfuly in "${path.join(process.cwd(), this.create_in_folder)}"!\n\n`));
                     console.log(chalk.blueBright(`Note:`, chalk.blue(`If you've chosen to use routes with Angular, don't forget to use hashes!\n(replace "RouterModule.forRoot(routes)" with "RouterModule.forRoot(routes, { useHash: true })")\n\n`)));
                     console.log(chalk.greenBright(`Now type in your console:\n\n cd ${this.elan_options.package.name}\n elan serve\n\nand start building your awesome app!\n\n`));
                     console.log(chalk.magentaBright(`Thank you for using ElAn CLI!`), chalk.magenta(`( https://github.com/D-LUSiON/elan-cli )`));
@@ -210,6 +243,7 @@ class Init {
                 path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'bin', 'ng'),
                 'new',
                 this.elan_options.package.name,
+                `--directory=${this.args._[1] || this.elan_options.package.name}`,
                 '--skipInstall=true',
                 '--commit=false',
                 '--interactive=false',
@@ -243,8 +277,10 @@ class Init {
     updateAngularRouting() {
         // TODO: Update Angular routing if chosen to be used
         return new Promise((resolve, reject) => {
-            if (fs.existsSync(path.join(progress.cwd(), this.elan_options.package.name)))
-            resolve();
+            if (fs.existsSync(path.join(progress.cwd(), this.args._[1])))
+                resolve();
+            else
+                reject(`updateAngularRouting method, that's not implemented, reports that ${path.join(progress.cwd(), this.args._[1])} does not exist!`);
         });
     }
 
@@ -256,7 +292,7 @@ class Init {
                 ncp_options = {
                     filter: (file) => !file.startsWith(path.join(__dirname, '..', 'assets', 'src'))
                 }
-            ncp(path.join(__dirname, '..', 'assets'), path.join(process.cwd(), this.package_json_options.name), ncp_options, () => {
+            ncp(path.join(__dirname, '..', 'assets'), path.join(process.cwd(), this.create_in_folder), ncp_options, () => {
                 this._modifyElectronPackageJSON().then(() => {
                     resolve();
                 }).catch(error => {
@@ -301,7 +337,7 @@ class Init {
                     ...this.elan_options.package
                 };
 
-                fs.writeFile(path.join(process.cwd(), this.elan_options.package.name, 'package.json'), JSON.stringify(this.package_json_options, null, 2), 'utf8', (err) => {
+                fs.writeFile(path.join(process.cwd(), this.create_in_folder, 'package.json'), JSON.stringify(this.package_json_options, null, 2), 'utf8', (err) => {
                     if (err) console.log(err);
                     resolve();
                 });
@@ -312,7 +348,7 @@ class Init {
     saveElanOptions() {
         return new Promise((resolve, reject) => {
             console.log(chalk.cyan('INFO'), `Saving ElAn options...`);
-            const path_to_elan_json = path.join(process.cwd(), this.elan_options.package.name, 'elan.json');
+            const path_to_elan_json = path.join(process.cwd(), this.create_in_folder, 'elan.json');
             fs.writeFile(path_to_elan_json, JSON.stringify(this.elan_options, null, 2), 'utf8', (err) => {
                 if (err) console.log(err);
                 resolve();
@@ -339,7 +375,7 @@ class Init {
 
     _getPackageJson() {
         return new Promise((resolve, reject) => {
-            const path_to_package_json = path.join(process.cwd(), this.elan_options.package.name, 'package.json');
+            const path_to_package_json = path.join(process.cwd(), this.create_in_folder, 'package.json');
             delete require.cache[require.resolve(path_to_package_json)];
             this.package_json_options = require(path_to_package_json);
             resolve();
@@ -348,7 +384,7 @@ class Init {
 
     _getAngularJson() {
         return new Promise((resolve, reject) => {
-            const path_to_angular_json = path.join(process.cwd(), this.elan_options.package.name, 'angular.json');
+            const path_to_angular_json = path.join(process.cwd(), this.create_in_folder, 'angular.json');
             delete require.cache[require.resolve(path_to_angular_json)];
             this.angular_options = require(path_to_angular_json);
             resolve();
@@ -357,7 +393,7 @@ class Init {
 
     _getElanJson() {
         return new Promise((resolve, reject) => {
-            const path_to_elan_json = path.join(process.cwd(), this.elan_options.package.name, 'elan.json');
+            const path_to_elan_json = path.join(process.cwd(), this.create_in_folder, 'elan.json');
             delete require.cache[require.resolve(path_to_elan_json)];
             this.elan_options = require(path_to_elan_json);
             resolve();
@@ -371,7 +407,7 @@ class Init {
                 const dev_env = `export const environment = {\n  production: false\n};\n`;
 
                 fs.writeFile(
-                    path.join(process.cwd(), this.elan_options.package.name, 'src', 'environments', 'environment.dev.ts'),
+                    path.join(process.cwd(), this.create_in_folder, 'src', 'environments', 'environment.dev.ts'),
                     dev_env, 'utf8', (err) => {
                         if (err) console.log(err);
                         rslv();
@@ -414,7 +450,7 @@ class Init {
                     };
 
                     fs.writeFile(
-                        path.join(process.cwd(), this.elan_options.package.name, 'angular.json'),
+                        path.join(process.cwd(), this.create_in_folder, 'angular.json'),
                         JSON.stringify(this.angular_options, null, 2),
                         'utf8',
                         (err) => {
@@ -429,7 +465,7 @@ class Init {
 
     _modifyBrowserslist() {
         return new Promise((resolve, reject) => {
-            fs.readFile(path.join(process.cwd(), this.elan_options.package.name, 'browserslist')).then(browserslist => {
+            fs.readFile(path.join(process.cwd(), this.create_in_folder, 'browserslist')).then(browserslist => {
                 const brl = browserslist.toString().split(/\n/);
                 let last_idx = -1;
                 brl.forEach((line, idx) => {
@@ -442,7 +478,7 @@ class Init {
                 brl_updated.push('last 2 Chrome versions');
 
                 fs.writeFile(
-                    path.join(process.cwd(), this.elan_options.package.name, 'browserslist'),
+                    path.join(process.cwd(), this.create_in_folder, 'browserslist'),
                     brl_updated.join(`\n`),
                     'utf8',
                     (err) => {
@@ -475,7 +511,7 @@ class Init {
                     devDependencies: {}
                 };
 
-                const path_to_package_json = path.join(process.cwd(), this.package_json_options.name, 'electron', 'package.json');
+                const path_to_package_json = path.join(process.cwd(), this.create_in_folder, 'electron', 'package.json');
 
                 fs.writeFile(path_to_package_json, JSON.stringify({
                     ...this.package_json_options,
@@ -490,7 +526,7 @@ class Init {
     _manageIgnores() {
         return new Promise((resolve, reject) => {
             console.log(chalk.cyan('INFO'), `Modifying ".gitignore"...`);
-            fs.readFile(path.join(process.cwd(), this.elan_options.package.name, '.gitignore'), (err, buffer) => {
+            fs.readFile(path.join(process.cwd(), this.create_in_folder, '.gitignore'), (err, buffer) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -502,7 +538,7 @@ class Init {
 
                     const node_modules_idx = gitignore.findIndex(x => x.match(/node_modules/));
                     gitignore[node_modules_idx] = '/**/node_modules/**/*';
-                    fs.writeFile(path.join(process.cwd(), this.elan_options.package.name, '.gitignore'), gitignore.join(`\n`), 'utf8', (err) => {
+                    fs.writeFile(path.join(process.cwd(), this.create_in_folder, '.gitignore'), gitignore.join(`\n`), 'utf8', (err) => {
                         if (err) {
                             reject(err);
                         } else
@@ -518,7 +554,7 @@ class Init {
             if (this.install_dependancies) {
                 console.log(chalk.cyan('INFO'), `Installing Angular dependancies...`);
                 const npm_install = spawn('node', [npm, 'install'], {
-                    cwd: path.join(process.cwd(), this.elan_options.package.name),
+                    cwd: path.join(process.cwd(), this.create_in_folder),
                     stdio: 'inherit'
                 });
                 npm_install.once('exit', (code, signal) => {
@@ -536,7 +572,7 @@ class Init {
                 if (this.install_dependancies) {
                     console.log(chalk.cyan('INFO'), `Installing Electron dependancies...`);
                     const npm_install = spawn('node', [npm, 'install'], {
-                        cwd: path.join(process.cwd(), this.elan_options.package.name, 'electron'),
+                        cwd: path.join(process.cwd(), this.create_in_folder, 'electron'),
                         stdio: 'inherit'
                     });
                     npm_install.once('exit', (code, signal) => {
@@ -555,7 +591,7 @@ class Init {
 
     _createEditorConfig() {
         return new Promise((resolve, reject) => {
-            if (!fs.existsSync(path.join(process.cwd(), this.elan_options.package.name, '.editorconfig'))) {
+            if (!fs.existsSync(path.join(process.cwd(), this.create_in_folder, '.editorconfig'))) {
                 const editorconfig = [
                     'root = true',
                     '',
@@ -567,7 +603,7 @@ class Init {
                     'insert_final_newline = true',
                 ].join(`\n`);
 
-                fs.writeFile(path.join(process.cwd(), this.elan_options.package.name, '.editorconfig'), editorconfig, 'utf8', (err) => {
+                fs.writeFile(path.join(process.cwd(), this.create_in_folder, '.editorconfig'), editorconfig, 'utf8', (err) => {
                     if (err) console.log(err);
                     resolve();
                 });
@@ -579,7 +615,7 @@ class Init {
     _commitChanges() {
         return new Promise((resolve, reject) => {
             console.log(chalk.cyan('INFO'), `Creating initial commit...`);
-            const Git = require('simple-git')(path.join(process.cwd(), this.elan_options.package.name));
+            const Git = require('simple-git')(path.join(process.cwd(), this.create_in_folder));
             Git.add('.', () => {
                 Git.commit('Initial commit by ElAn CLI', () => {
                     resolve();

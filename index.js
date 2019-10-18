@@ -34,7 +34,7 @@ if (!fileOps.checkDir(path.join(__dirname, 'commands', `${argv._[0]}.js`))) {
     comm.entry().then(() => {
         process.exit(0);
     }).catch((err) => {
-        console.error(chalk.rgb(255,0,0)(err));
+        if (err) console.error(chalk.rgb(255,0,0)(err));
         process.exit(2);
     });
 }
