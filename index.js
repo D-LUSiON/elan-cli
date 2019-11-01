@@ -20,7 +20,7 @@ console.log(figlet.textSync('ElAn CLI', {
 
 if (!fileOps.checkDir(path.join(__dirname, 'commands', `${argv._[0]}.js`))) {
     if (!argv._[0])
-        console.error(chalk.red(chalk.rgb(255,131,0)(`Please, provide valid command!\n`)));
+        console.error(chalk.red(chalk.rgb(255, 131, 0)(`Please, provide valid command!\n`)));
     else
         console.error(`Command ${chalk.red(argv._[0])} does not exist!`);
 
@@ -34,7 +34,7 @@ if (!fileOps.checkDir(path.join(__dirname, 'commands', `${argv._[0]}.js`))) {
     comm.entry().then(() => {
         process.exit(0);
     }).catch((err) => {
-        if (err) console.error(chalk.rgb(255,0,0)(err));
-        process.exit(2);
+        if (err) console.error(chalk.rgb(255, 0, 0)('ERROR'), err);
+        process.exit(1);
     });
 }

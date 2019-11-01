@@ -7,7 +7,7 @@ ElAn is here to help you with the whole process because it's the all-in-one solu
 
 ## Installation
 
-Install ElAn as global dependancy:
+Install ElAn as global dependency:
 
 ```npm install -g elan-cli```
 

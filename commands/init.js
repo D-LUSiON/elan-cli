@@ -5,6 +5,7 @@ const chalk = require('chalk');
 const { exec, spawn } = require('child_process');
 const { ncp } = require('ncp'); // Recursive copying
 const { getInstalledPathSync } = require('get-installed-path');
+const elan_package_json = require('../package.json');
 
 const npm = getInstalledPathSync('npm');
 
@@ -24,7 +25,7 @@ class Init {
         this.angular_options = {};
         this.electron_options = {};
         this.package_json_options = {};
-        this.install_dependancies = true;
+        this.install_dependencies = true;
     }
 
     entry() {
@@ -160,10 +161,10 @@ class Init {
                 inquirer.prompt([{
                     type: 'confirm',
                     name: 'npm_install',
-                    message: 'Do you want to install all dependancies after the project files are created?',
-                    default: this.install_dependancies
+                    message: 'Do you want to install all dependencies after the project files are created?',
+                    default: this.install_dependencies
                 }, ]).then(answer => {
-                    this.install_dependancies = answer.npm_install;
+                    this.install_dependencies = answer.npm_install;
                     resolve();
                 });
             });
@@ -221,11 +222,15 @@ class Init {
                 .then(() => this._manageIgnores())
                 .then(() => this._modifyBrowserslist())
                 .then(() => this._createEditorConfig())
+                .then(() => this._modifyReadme())
                 .then(() => this._commitChanges())
                 .then(() => {
                     console.log(chalk.greenBright(`\nProject "${this.elan_options.package.name}" initialized successfuly in "${path.join(process.cwd(), this.create_in_folder)}"!\n\n`));
                     console.log(chalk.blueBright(`Note:`, chalk.blue(`If you've chosen to use routes with Angular, don't forget to use hashes!\n(replace "RouterModule.forRoot(routes)" with "RouterModule.forRoot(routes, { useHash: true })")\n\n`)));
-                    console.log(chalk.greenBright(`Now type in your console:\n\n cd ${this.elan_options.package.name}\n elan serve\n\nand start building your awesome app!\n\n`));
+                    console.log(chalk.greenBright(`Now type in your console:\n`));
+                    console.log(chalk.rgb(128, 128, 128)(`$ cd ${this.elan_options.package.name}\n$ elan serve\n`));
+                    console.log(chalk.greenBright(`and start building your awesome app!\n\n`));
+                    
                     console.log(chalk.magentaBright(`Thank you for using ElAn CLI!`), chalk.magenta(`( https://github.com/D-LUSiON/elan-cli )`));
                     console.log(chalk.magentaBright(`I'll appreciate any feedback and issue reports!`));
                     resolve();
@@ -304,7 +309,7 @@ class Init {
 
     initElectron() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.cyan('INFO'), `Adding Electron dependancies to package.json...`);
+            console.log(chalk.cyan('INFO'), `Adding Electron dependencies to package.json...`);
             this._getLatestDepsVersions().then(([electron_version, ngx_electron_version]) => {
                 console.log(chalk.cyan('INFO'), `Latest Electron version:`, chalk.greenBright(`v${electron_version}`));
                 console.log(chalk.cyan('INFO'), `Latest ngx-electron version:`, chalk.greenBright(`v${ngx_electron_version}`));
@@ -551,8 +556,8 @@ class Init {
 
     installDependancies() {
         return new Promise((resolve, reject) => {
-            if (this.install_dependancies) {
-                console.log(chalk.cyan('INFO'), `Installing Angular dependancies...`);
+            if (this.install_dependencies) {
+                console.log(chalk.cyan('INFO'), `Installing Angular dependencies...`);
                 const npm_install = spawn('node', [npm, 'install'], {
                     cwd: path.join(process.cwd(), this.create_in_folder),
                     stdio: 'inherit'
@@ -564,13 +569,13 @@ class Init {
                         reject(signal);
                 });
             } else {
-                console.log(chalk.rgb(255, 128, 0)('SKIP'), `Skipping installation of Angular dependancies...`);
+                console.log(chalk.rgb(255, 128, 0)('SKIP'), `Skipping installation of Angular dependencies...`);
                 resolve();
             }
         }).then(() => {
             return new Promise((resolve, reject) => {
-                if (this.install_dependancies) {
-                    console.log(chalk.cyan('INFO'), `Installing Electron dependancies...`);
+                if (this.install_dependencies) {
+                    console.log(chalk.cyan('INFO'), `Installing Electron dependencies...`);
                     const npm_install = spawn('node', [npm, 'install'], {
                         cwd: path.join(process.cwd(), this.create_in_folder, 'electron'),
                         stdio: 'inherit'
@@ -582,7 +587,7 @@ class Init {
                             reject(signal);
                     });
                 } else {
-                    console.log(chalk.rgb(255, 128, 0)('SKIP'), `Skipping installation of Electron dependancies...`);
+                    console.log(chalk.rgb(255, 128, 0)('SKIP'), `Skipping installation of Electron dependencies...`);
                     resolve();
                 }
             });
@@ -607,6 +612,31 @@ class Init {
                     if (err) console.log(err);
                     resolve();
                 });
+            } else
+                resolve();
+        });
+    }
+
+    _modifyReadme() {
+        return new Promise((resolve, reject) => {
+            if (fs.existsSync(path.join(process.cwd(), this.create_in_folder, 'README.md'))) {
+                fs.readFile(path.join(__dirname, '..', 'resources', 'README.md'))
+                    .then(readme => {
+                        const replace_texts = {
+                            project_title: (this.elan_options.package.productName || (this.elan_options.package.name || this.create_in_folder).split(/[-_\. \s]/).map(word => `${word.charAt(0).toUpperCase()}${word.substr(1)}`).join('')),
+                            project_description: (this.elan_options.package.description || '*No description available*'),
+                            elan_version: elan_package_json.version,
+                            angular_version: this.package_json_options.dependencies['@angular/core'].replace(/[\^\<\>=\*\~]/, ''),
+                            angular_cli_version: this.package_json_options.devDependencies['@angular/cli'].replace(/[\^\<\>=\*\~]/, ''),
+                            electron_version: this.package_json_options.devDependencies['electron'].replace(/[\^\<\>=\*\~]/, '')
+                        }
+                        let rdme = readme.toString();
+                        rdme = rdme.replace(/\{(.+?)\}/g, ($1, $2) => replace_texts[$2.trim()]);
+                        fs.writeFile(path.join(process.cwd(), this.create_in_folder, 'README.md'), rdme, 'utf8', (err) => {
+                            if (err) console.log(err);
+                            resolve();
+                        });
+                    });
             } else
                 resolve();
         });
