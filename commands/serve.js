@@ -13,7 +13,12 @@ class Serve {
     constructor(args) {
         this.description = 'Starts a development server';
         this.usage = '$ elan serve [project] [,options]';
-        this.usage_options = [];
+        this.usage_options = [
+            {
+                option: '--fresh',
+                description: 'Clears the contents of "www" folder before starting development instance'
+            }
+        ];
         this.options = [];
         this.args = args;
     }
@@ -23,10 +28,32 @@ class Serve {
         this.project = this.args._[1] || this.angularJson.defaultProject;
         console.log(chalk.greenBright('ACTION'), `Starting ElAn live server${this.args._[1] ? (' for project "' + this.project + '"') : ''}...`);
 
-        return Promise.all([
-            this.ngWatch(),
-            this.electronWatch(),
-        ]);
+        return this.freshStart()
+            .then(() =>
+                Promise.all([
+                    this.ngWatch(),
+                    this.electronWatch(),
+                ])
+            );
+    }
+
+    freshStart() {
+        return new Promise((resolve, reject) => {
+            if (this.args['fresh']) {
+                console.log(chalk.greenBright('ACTION'), `Clearing "www" folder...`);
+                fs.remove(path.join(process.cwd(), 'www'))
+                    .then(() => fs.mkdir(path.join(process.cwd(), 'www')))
+                    .then(() => fs.copyFile(path.join(__dirname, '..', 'assets', 'www', 'index.html'), path.join(process.cwd(), 'www', 'index.html')))
+                    .then(() => {
+                        console.log(chalk.cyan('INFO'), `Folder "www" cleared...`);
+                        resolve();
+                    })
+                    .catch(err => {
+                        reject(err);
+                    });
+            } else
+                resolve();
+        });
     }
 
     ngWatch() {
@@ -36,10 +63,11 @@ class Serve {
                 'build',
                 this.project,
                 '--watch',
-                '--configuration=dev',
+                `${this.args['prod'] ? '--prod' : '--configuration=dev'}`,
                 '--outputPath=./www',
                 '--baseHref='
             ], {
+                cwd: process.cwd(),
                 stdio: 'inherit'
             });
 
@@ -70,6 +98,7 @@ class Serve {
 
             nodemon({
                 exec: `${electron_path} ./electron`,
+                cwd: process.cwd(),
                 verbose: true,
                 watch: [
                     './www',
