@@ -39,7 +39,7 @@ class Help {
                                 `${chalk.rgb(128, 255, 128)('Command:')} ${command_name}`,
                                 `Aliases: ${command.aliases || '-- none --'}`,
                                 `${chalk.rgb(0, 128, 255)('Usage:')} ${command.usage}`,
-                                `${chalk.rgb(0, 128, 255)('Usage options:')} ${command.usage_options.length ? command.usage_options.map(option => `${option.option} - ${option.description}`).join('\n') : '-- none --'}`,
+                                `${chalk.rgb(0, 128, 255)('Usage options:')} ${command.usage_options.length ? '\n' + command.usage_options.map(option => `    ${chalk.bold(option.option)} - ${option.description}\n    Accepted values: ${option.values}\n    Default value: ${option.defaultValue || '-- none --'}\n`).join('\n') : '-- none --'}`,
                                 `${chalk.rgb(255, 128, 0)('Description:')} ${command.description}`,
                                 `\n`
                             ].join('\n'));

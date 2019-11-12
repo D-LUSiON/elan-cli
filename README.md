@@ -48,7 +48,7 @@ I'd like to thank all these hard working people and their open source projects b
 - [Angular](https://angular.io/)
 - [Electron builder](https://www.electron.build/)
 - [Nodemon](https://nodemon.io/)
-- and all other that these projects depend on...
+- and all other that this projects depend on...
 
 ## Issues and Contribution
 If you like what I've done so far, star the project to help it reach more people!
