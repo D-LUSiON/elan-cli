@@ -15,7 +15,7 @@ console.log(figlet.textSync('ElAn CLI', {
     font: 'JS Bracket Letters',
     horizontalLayout: 'default',
     verticalLayout: 'default'
-}), chalk.rgb(107, 107, 189)(`v${packagejson.version}\n`));
+}), chalk.rgb(107, 107, 189)(`\n${new Array(21).join(' ')}v${packagejson.version}\n`));
 
 
 if (!fileOps.checkDir(path.join(__dirname, 'commands', `${argv._[0]}.js`))) {
