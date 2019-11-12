@@ -16,11 +16,16 @@ class Init {
         this.usage_options = [];
         this.aliases = 'new';
         this.args = args;
-        this.create_in_folder = this.args._[1] || '';
+        this.create_in_folder = (this.args && this.args._) ? this.args._[1] : '';
         this.elan_options = {
             blacklist: [],
             package: {},
             angular: {},
+            versions: {
+                main: '',
+                electron: '',
+                angular: {},
+            }
         };
         this.angular_options = {};
         this.electron_options = {};
@@ -130,7 +135,7 @@ class Init {
                     type: 'input',
                     name: 'version',
                     message: 'Initial version',
-                    default: '0.0.1'
+                    default: '1.0.0'
                 },
                 {
                     type: 'input',
@@ -152,6 +157,10 @@ class Init {
                     this.elan_options.package = {
                         ...general_answers
                     };
+
+                    this.elan_options.versions.main = this.elan_options.package.version;
+                    this.elan_options.versions.electron = this.elan_options.package.version;
+                    this.elan_options.versions.angular[this.elan_options.package.name] = this.elan_options.package.version;
 
                     if (!this.create_in_folder) this.create_in_folder = this.elan_options.package.name;
 
