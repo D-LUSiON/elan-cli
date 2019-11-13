@@ -25,10 +25,10 @@
   },
   "homepage": "https://github.com/D-LUSiON/elan-cli#readme",
   "dependencies": {
-    "@angular/cli": "^8.3.17",
+    "@angular/cli": "^8.3.18",
     "chalk": "^2.4.2",
     "chokidar": "^3.1.1",
-    "electron": "^7.0.0",
+    "electron": "^7.1.1",
     "electron-builder": "^20.44.4",
     "electron-rebuild": "^1.8.6",
     "figlet": "^1.2.4",
