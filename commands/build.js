@@ -676,7 +676,6 @@ class Build {
                 };
 
                 if (this.options.version) {
-                    this.elanJson._versions_old.main = this.elanJson.versions.main;
                     if (semver.valid(this.options.version))
                         this.elanJson.versions.main = this.options.version;
                     else
@@ -684,7 +683,6 @@ class Build {
                 }
 
                 if (this.options.eVersion) {
-                    this.elanJson._versions_old.electron = this.elanJson.versions.electron;
                     if (semver.valid(this.options.eVersion))
                         this.elanJson.versions.electron = this.options.eVersion;
                     else
@@ -721,7 +719,6 @@ class Build {
                 'Setting new versions:',
                 `Main project: v${elan_versions.main !== elan_versions_old.main ? chalk.rgb(255, 255, 255).bold(elan_versions.main) : elan_versions.main}` + (elan_versions.main !== elan_versions_old.main ? ` (was v${elan_versions_old.main})` : ''),
                 `Electron: v${elan_versions.electron !== elan_versions_old.electron ? chalk.rgb(255, 255, 255).bold(elan_versions.electron) : elan_versions.electron}` + (elan_versions.electron !== elan_versions_old.electron ? ` (was v${elan_versions_old.electron})` : ''),
-                // FIXME: elan_versions.angular[this.project] is always === elan_versions_old.angular[this.project]
                 `${this.project}: v${elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? chalk.rgb(255, 255, 255).bold(elan_versions.angular[this.project]) : elan_versions.angular[this.project]}` + (elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? ` (was v${elan_versions_old.angular[this.project]})` : '')
             ].join(`\n`));
 
