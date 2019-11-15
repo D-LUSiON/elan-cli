@@ -31,10 +31,10 @@ class Version {
 
     entry() {
         return new Promise((resolve, reject) => {
-            this.elanJson = require(path.join(process.cwd(), 'elan.json'));
-            this.packageJson = require(path.join(process.cwd(), 'package.json'));
-            this.electronPackageJson = require(path.join(process.cwd(), 'electron', 'package.json'));
-            this.angularJson = require(path.join(process.cwd(), 'angular.json'));
+            this.elanJson = fs.existsSync(path.join(process.cwd(), 'elan.json')) ? require(path.join(process.cwd(), 'elan.json')) : null;
+            this.packageJson = fs.existsSync(path.join(process.cwd(), 'package.json')) ? require(path.join(process.cwd(), 'package.json')) : null;
+            this.electronPackageJson = fs.existsSync(path.join(process.cwd(), 'electron', 'package.json')) ? require(path.join(process.cwd(), 'electron', 'package.json')) : null;
+            this.angularJson = fs.existsSync(path.join(process.cwd(), 'angular.json')) ? require(path.join(process.cwd(), 'angular.json')) : null;
 
             if (this.args._[1] === 'set') {
                 return this.setVersion();
@@ -45,70 +45,72 @@ class Version {
 
     setVersion() {
         return new Promise((resolve, reject) => {
-            let [project, version] = [...this.args._].slice(2);
-            if (!version && project) {
-                version = project;
-                project = '';
-            }
+            if (this.elanJson && this.packageJson && this.electronPackageJson && this.angularJson) {
+                let [project, version] = [...this.args._].slice(2);
+                if (!version && project) {
+                    version = project;
+                    project = '';
+                }
 
-            if (!this.elanJson.versions) {
-                this.elanJson.versions = {
-                    main: this.packageJson.version,
-                    electron: this.electronPackageJson.version,
-                    angular: {}
+                if (!this.elanJson.versions) {
+                    this.elanJson.versions = {
+                        main: this.packageJson.version,
+                        electron: this.electronPackageJson.version,
+                        angular: {}
+                    };
+                }
+
+                Object.entries(this.angularJson.projects).forEach(([project, data]) => {
+                    if (data.projectType === 'application' && !this.elanJson.versions.angular[project]) {
+                        this.elanJson.versions.angular[project] = this.elanJson.versions.main;
+                    }
+                });
+
+                this.elanJson._versions_old = {
+                    ...this.elanJson.versions,
+                    angular: {
+                        ...this.elanJson.versions.angular
+                    }
                 };
-            }
 
-            Object.entries(this.angularJson.projects).forEach(([project, data]) => {
-                if (data.projectType === 'application' && !this.elanJson.versions.angular[project]) {
-                    this.elanJson.versions.angular[project] = this.elanJson.versions.main;
-                }
-            });
+                if (version && !project && !this.args.version && !this.args['e-version']) {
+                    // increase all versions
+                    this.setMainVersion(version);
+                    this.setElectronVersion(version);
+                    this.setAngularVersion(version);
+                } else {
+                    // increase parts
+                    if (this.args.version) {
+                        // set main version
+                        this.setMainVersion(this.args.version);
+                    }
 
-            this.elanJson._versions_old = {
-                ...this.elanJson.versions,
-                angular: {
-                    ...this.elanJson.versions.angular
-                }
-            };
+                    if (this.args['e-version']) {
+                        // set Electron version
+                        this.setElectronVersion(this.args['e-version']);
+                    }
 
-            if (version && !project && !this.args.version && !this.args['e-version']) {
-                // increase all versions
-                this.setMainVersion(version);
-                this.setElectronVersion(version);
-                this.setAngularVersion(version);
-            } else {
-                // increase parts
-                if (this.args.version) {
-                    // set main version
-                    this.setMainVersion(this.args.version);
-                }
-    
-                if (this.args['e-version']) {
-                    // set Electron version
-                    this.setElectronVersion(this.args['e-version']);
+                    if (
+                        ((version && project) && !this.args.version && !this.args['e-version']) ||
+                        (version || project) && (this.args.version || this.args['e-version']) ||
+                        this.args['ng-only']
+                    ) {
+                        this.setAngularVersion(version, project);
+                    }
                 }
 
-                if (
-                    ((version && project) && !this.args.version && !this.args['e-version']) ||
-                    (version || project) && (this.args.version || this.args['e-version']) ||
-                    this.args['ng-only']
-                ) {
-                    this.setAngularVersion(version, project);
-                }
-            }
-            
-            // TODO: Save only files that need to be changed
-            Promise.all([
-                this.savePackageJson(),
-                this.saveElectronPackageJson(),
-                this.saveElanJson(),
-            ]).then(() => {
-                resolve();
-            }).catch(err => {
-                reject(err);
-            });
-            // resolve();
+                // TODO: Save only files that need to be changed
+                Promise.all([
+                    this.savePackageJson(),
+                    this.saveElectronPackageJson(),
+                    this.saveElanJson(),
+                ]).then(() => {
+                    resolve();
+                }).catch(err => {
+                    reject(err);
+                });
+            } else
+                reject(`You're not in an ElAn project folder!`);
         });
     }
 
@@ -117,7 +119,7 @@ class Version {
         this.packageJson.version = this.elanJson.versions.main;
         console.info(chalk.magentaBright(`Main:`), `${this.elanJson._versions_old.main} -> ${chalk.greenBright(this.elanJson.versions.main)}`)
     }
-    
+
     setElectronVersion(version) {
         this.elanJson.versions.electron = semver.valid(version) ? version : semver.inc(this.elanJson.versions.electron, version, this.args.preid);
         this.electronPackageJson.version = this.elanJson.versions.electron;
@@ -156,33 +158,40 @@ class Version {
 
     displayVersion() {
         return new Promise((resolve, reject) => {
-            if (fs.existsSync(path.join(process.cwd(), 'elan.json')) && !this.args.global) {
-                console.info(`\n${chalk.rgb(255,131,0)(`Checking for installed versions in ${this.packageJson.productName}...`)}`);
+            if (this.elanJson && !this.args.global) {
+                console.log(chalk.greenBright(`Package name:`), this.packageJson.name);
+                console.log(chalk.greenBright(`Product name:`), this.packageJson.productName ? this.packageJson.productName : '--none--');
+                console.log(chalk.greenBright(`Description:`), this.packageJson.description ? this.packageJson.description : '--none--', '\n');
+
                 const angularProjects = Object.entries(this.angularJson.projects).filter(([project, data]) => data.projectType === 'application').map(([project, data]) => project);
-                
+
                 console.info([
-                    chalk.greenBright(`${this.packageJson.productName} project versions:`),
+                    chalk.greenBright(`"${this.packageJson.productName}" package versions:`),
                     `${chalk.magentaBright('Main:')} v${this.packageJson.version}`,
                     `${chalk.magentaBright('Electron backend:')} v${this.electronPackageJson.version}`,
+                    `\n`,
+                    chalk.greenBright(`Angular projects:`),
                     ...angularProjects.map(project => `${chalk.magentaBright(project)}${project === this.angularJson.defaultProject ? chalk.grey(' (default)') : ''}${chalk.magentaBright(':')} ${(this.elanJson.versions && this.elanJson.versions.angular && this.elanJson.versions.angular[project]) ? 'v' + this.elanJson.versions.angular[project] : '--none--'}`),
                     '\n',
                     chalk.greenBright(`Packages used:`),
-                    `${chalk.magentaBright('Electron')} v${this.packageJson.devDependencies['electron']}`,
-                    `${chalk.magentaBright('Angular')} v${this.packageJson.dependencies['@angular/core']}`,
+                    `${chalk.magentaBright('Electron')} v${this.packageJson.devDependencies['electron'] ? require(path.join(process.cwd(), 'node_modules', 'electron', 'package.json')).version : '--none--'}`,
+                    `${chalk.magentaBright('Angular')} v${this.packageJson.dependencies['@angular/core'] ? require(path.join(process.cwd(), 'node_modules', '@angular', 'core', 'package.json')).version : '--none--'}`,
                 ].join(`\n`), '\n');
 
                 loadingSpinner.stop();
                 resolve();
             } else {
+                console.info(`${chalk.greenBright('Checking for globally installed versions...')}`);
+
                 loadingSpinner.start(
-                    100, {
+                    100,
+                    {
                         clearChar: true,
                         clearLine: true,
                         doNotBlock: true,
                         hideCursor: true
                     }
                 );
-                console.info(`\n${chalk.rgb(255,131,0)('Checking for globally installed versions...')}`);
 
                 Promise.all([
                     new Promise(resolve => {
@@ -215,17 +224,17 @@ class Version {
                     loadingSpinner.stop();
                     const elan = local_versions.filter(x => x.startsWith('elan-cli'))[0];
                     const elan_ver = elan ? elan.split('@').pop() : '';
-    
+
                     const angular = local_versions.filter(x => x.startsWith('@angular/cli'))[0];
                     const angular_ver = angular ? angular.split('@').pop() : '';
-    
+
                     const electron = local_versions.filter(x => x.startsWith('electron'))[0];
                     const electron_ver = electron ? electron.split('@').pop() : '';
-    
+
                     console.info([
-                        chalk `ElAn-CLI: {${(!elan_ver || elan_latest > elan_ver) ? 'rgb(255,131,0)' : 'green'} ${elan_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(elan_ver && elan_ver < elan_latest) ? (' - newer version available: ' + elan_latest) : ''}}`,
-                        chalk `Electron: {${(!electron_ver || electron_latest > electron_ver) ? 'rgb(255,131,0)' : 'green'} ${electron_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(electron_ver && electron_ver < electron_latest) ? ('- newer version available: ' + electron_latest) : ''}}`,
-                        chalk `@angular/core: {${(!angular_ver || angular_latest > angular_ver) ? 'rgb(255,131,0)' : 'green'} ${angular_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(angular_ver && angular_ver < angular_latest) ? ('- newer version available: ' + angular_latest) : ''}}`,
+                        chalk`ElAn-CLI: {${(!elan_ver || elan_latest > elan_ver) ? 'rgb(255,131,0)' : 'green'} ${elan_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(elan_ver && elan_ver < elan_latest) ? (' - newer version available: ' + elan_latest) : ''}}`,
+                        chalk`Electron: {${(!electron_ver || electron_latest > electron_ver) ? 'rgb(255,131,0)' : 'green'} ${electron_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(electron_ver && electron_ver < electron_latest) ? ('- newer version available: ' + electron_latest) : ''}}`,
+                        chalk`@angular/cli: {${(!angular_ver || angular_latest > angular_ver) ? 'rgb(255,131,0)' : 'green'} ${angular_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(angular_ver && angular_ver < angular_latest) ? ('- newer version available: ' + angular_latest) : ''}}`,
                     ].join('\n'));
                     resolve();
                 });
