@@ -36,11 +36,10 @@ class Help {
                             const commandController = require(path.join(__dirname, file));
                             const command = new commandController();
                             help_lines.push([
-                                `${chalk.rgb(128, 255, 128)('Command:')} ${command_name}`,
-                                `Aliases: ${command.aliases || '-- none --'}`,
-                                `${chalk.rgb(0, 128, 255)('Usage:')} ${command.usage}`,
-                                `${chalk.rgb(0, 128, 255)('Usage options:')} ${command.usage_options.length ? '\n' + command.usage_options.map(option => `    ${chalk.bold(option.option)} - ${option.description}\n    Accepted values: ${option.values}\n    Default value: ${option.defaultValue || '-- none --'}\n`).join('\n') : '-- none --'}`,
+                                `${chalk.rgb(128, 255, 128)('Command:')} ${command_name}${ command.aliases ? ' (alias: ' + command.aliases + ')' : ''}`,
                                 `${chalk.rgb(255, 128, 0)('Description:')} ${command.description}`,
+                                `${chalk.rgb(0, 128, 255)('Usage:')} ${command.usage}`,
+                                `${chalk.rgb(0, 128, 255)('Usage options:')} ${command.usage_options.length ? '\n' + command.usage_options.map(option => `    ${chalk.bold(option.option[0]) + (option.option.length > 1 ? ' (or ' + option.option.slice(1).join(', ') + ')' : '')} - ${option.description}\n    Accepted values: ${option.values}\n    Default value: ${option.defaultValue || '-- none --'}\n`).join('\n') : '-- none --'}`,
                                 `\n`
                             ].join('\n'));
                         }

@@ -13,13 +13,13 @@ class Version {
         this.usage = '$ elan version [, project, version] [--version [, --preid]] [--e-version [, --e-preid]]';
         this.usage_options = [
             {
-                option: '--global',
+                option: ['--global'],
                 description: 'Shows globally installed versions when in project folder',
                 values: '',
                 defaultValue: ''
             },
             {
-                option: '--ng-only',
+                option: ['--ng-only'],
                 description: 'Sets version only to Angular applications',
                 values: '',
                 defaultValue: ''

@@ -19,37 +19,37 @@ class Build {
         this.usage = '$ elan build [project] [,options]';
         this.usage_options = [
             {
-                option: '--keepCompile or --keep-compile',
+                option: ['--keepCompile', '--keep-compile'],
                 description: 'Keep compiled output in "tmp" folder after the build has finished',
                 values: 'Boolean (true or false)',
                 defaultValue: 'false'
             },
             {
-                option: '--environment',
+                option: ['--environment'],
                 description: 'Environment to be used when building the project.',
                 values: 'String - the name of the environment',
                 defaultValue: 'debug'
             },
             {
-                option: '--prod or --production',
+                option: ['--prod', '--production'],
                 description: 'Builds the project using "environment.prod.js" environment (if options is not provided, it uses "environment.debug.js")',
                 values: '',
                 defaultValue: ''
             },
             {
-                option: '--version',
+                option: ['--version'],
                 description: 'Increases version of the project in root "package.json".',
                 values: '[<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--preid=<prerelease-id>]]',
                 defaultValue: ''
             },
             {
-                option: '--e-version or --eVersion',
+                option: ['--e-version', '--eVersion'],
                 description: 'Increases version of "electron/package.json".',
                 values: '[<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--e-preid=<prerelease-id>]]',
                 defaultValue: ''
             },
             {
-                option: '--ng-version or --ngVersion',
+                option: ['--ng-version', '--ngVersion'],
                 description: `Increases version of Angular project that's being build.`,
                 values: '[<newversion> | major | minor | patch | premajor | preminor | prepatch | prerelease [--ng-preid=<prerelease-id>]]',
                 defaultValue: ''
@@ -703,32 +703,37 @@ class Build {
 
     saveVersions() {
         return new Promise((resolve, reject) => {
-            const elan_versions = { ...this.elanJson.versions };
-            const elan_versions_old = { ...this.elanJson._versions_old };
-
-            this.packageJson = require(path.join(process.cwd(), 'package.json'));
-            this.packageJson.version = elan_versions.main;
-
-            const electronPackageJson = require(path.join(process.cwd(), 'electron', 'package.json'));
-            electronPackageJson.version = elan_versions.electron;
-
-            this.elanJson = require(path.join(process.cwd(), 'elan.json'));
-            this.elanJson.versions = { ...elan_versions };
-
-            console.log(chalk.greenBright('ACTION'), [
-                'Setting new versions:',
-                `Main project: v${elan_versions.main !== elan_versions_old.main ? chalk.rgb(255, 255, 255).bold(elan_versions.main) : elan_versions.main}` + (elan_versions.main !== elan_versions_old.main ? ` (was v${elan_versions_old.main})` : ''),
-                `Electron: v${elan_versions.electron !== elan_versions_old.electron ? chalk.rgb(255, 255, 255).bold(elan_versions.electron) : elan_versions.electron}` + (elan_versions.electron !== elan_versions_old.electron ? ` (was v${elan_versions_old.electron})` : ''),
-                `${this.project}: v${elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? chalk.rgb(255, 255, 255).bold(elan_versions.angular[this.project]) : elan_versions.angular[this.project]}` + (elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? ` (was v${elan_versions_old.angular[this.project]})` : '')
-            ].join(`\n`));
-
-            delete this.elanJson._versions_old;
-
-            return Promise.all([
-                fs.writeFile(path.join(process.cwd(), 'package.json'), JSON.stringify(this.packageJson, null, 4), 'utf8'),
-                fs.writeFile(path.join(process.cwd(), 'electron', 'package.json'), JSON.stringify(electronPackageJson, null, 4), 'utf8'),
-                fs.writeFile(path.join(process.cwd(), 'elan.json'), JSON.stringify(this.elanJson, null, 4), 'utf8'),
-            ]);
+            if (this.elanJson._versions_old) {
+                const elan_versions = { ...this.elanJson.versions };
+                const elan_versions_old = { ...this.elanJson._versions_old };
+    
+                this.packageJson = require(path.join(process.cwd(), 'package.json'));
+                this.packageJson.version = elan_versions.main;
+    
+                const electronPackageJson = require(path.join(process.cwd(), 'electron', 'package.json'));
+                electronPackageJson.version = elan_versions.electron;
+    
+                this.elanJson = require(path.join(process.cwd(), 'elan.json'));
+                this.elanJson.versions = { ...elan_versions };
+    
+                console.log(chalk.greenBright('ACTION'), [
+                    'Setting new versions:',
+                    // FIXME: When versions are not set to be changed, there was an error: TypeError: Cannot read property 'kiosk' of undefined
+                    `Main project: v${elan_versions.main !== elan_versions_old.main ? chalk.rgb(255, 255, 255).bold(elan_versions.main) : elan_versions.main}` + (elan_versions.main !== elan_versions_old.main ? ` (was v${elan_versions_old.main})` : ''),
+                    `Electron: v${elan_versions.electron !== elan_versions_old.electron ? chalk.rgb(255, 255, 255).bold(elan_versions.electron) : elan_versions.electron}` + (elan_versions.electron !== elan_versions_old.electron ? ` (was v${elan_versions_old.electron})` : ''),
+                    `${this.project}: v${elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? chalk.rgb(255, 255, 255).bold(elan_versions.angular[this.project]) : elan_versions.angular[this.project]}` + (elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? ` (was v${elan_versions_old.angular[this.project]})` : '')
+                ].join(`\n`));
+    
+                delete this.elanJson._versions_old;
+    
+                return Promise.all([
+                    fs.writeFile(path.join(process.cwd(), 'package.json'), JSON.stringify(this.packageJson, null, 4), 'utf8'),
+                    fs.writeFile(path.join(process.cwd(), 'electron', 'package.json'), JSON.stringify(electronPackageJson, null, 4), 'utf8'),
+                    fs.writeFile(path.join(process.cwd(), 'elan.json'), JSON.stringify(this.elanJson, null, 4), 'utf8'),
+                ]);
+            } else {
+                resolve();
+            }
         });
     }
 }

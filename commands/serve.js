@@ -15,7 +15,7 @@ class Serve {
         this.usage = '$ elan serve [project] [,options]';
         this.usage_options = [
             {
-                option: '--fresh',
+                option: ['--fresh'],
                 description: 'Clears the contents of "www" folder before starting development instance'
             }
         ];

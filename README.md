@@ -39,6 +39,8 @@ For now you can use following commands:
 - Init Angular multi-project
 - Create resources from image for compiler
 - Initialize with template (like Ionic)
+- Setup TypeScript for Electron
+- Setup if project uses local index.html or loads Express http server
 
 ## Credits
 I'd like to thank all these hard working people and their open source projects because ElAn will not be possible without them:
