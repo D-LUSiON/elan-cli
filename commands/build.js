@@ -583,11 +583,11 @@ class Build {
             process.env.DEBUG = 'electron-builder';
 
         const buildPackageJson = require(path.join(process.cwd(), 'build', 'package.json'));
-        const app_name = `${buildPackageJson.productName || buildPackageJson.name}-${this.elanJson.versions.angular[this.project]}-${this.options.environment}`;
+        const app_name = `${(buildPackageJson.productName || buildPackageJson.name).replace(/\s/g, '_')}-${this.elanJson.versions.angular[this.project]}-${this.options.environment}`;
         const config = {
             productName: (buildPackageJson.productName || buildPackageJson.name),
             artifactName: app_name + '-${os}-${arch}.${ext}',
-            buildVersion: this.elanJson.versions.angular[this.project],
+            buildVersion: this.elanJson.versions.angular && this.elanJson.versions.angular[this.project] ? this.elanJson.versions.angular[this.project] : this.elanJson.versions.main,
             directories: {
                 buildResources: 'resources',
                 app: 'build',
@@ -651,16 +651,20 @@ class Build {
 
     increaseVersions() {
         return new Promise((resolve, reject) => {
+            if (!this.elanJson.versions) {
+                this.elanJson.versions = {
+                    main: require(path.join(process.cwd(), 'package.json')).version,
+                    electron: require(path.join(process.cwd(), 'electron', 'package.json')).version,
+                    angular: {}
+                };
+                Object.entries(this.angularJson.projects).forEach(([project, value]) => {
+                    if (value.projectType === 'application') {
+                        this.elanJson.versions.angular[project] = this.elanJson.versions.main;
+                    }
+                });
+            }
             if (this.options.version || this.options.eVersion || this.options.ngVersion) {
                 const semver = require('semver');
-                
-                if (!this.elanJson.versions) {
-                    this.elanJson.versions = {
-                        main: require(path.join(process.cwd(), 'package.json')).version,
-                        electron: require(path.join(process.cwd(), 'electron', 'package.json')).version,
-                        angular: {}
-                    };
-                }
 
                 Object.entries(this.angularJson.projects).forEach(([project, value]) => {
                     if (value.projectType === 'application' && !this.elanJson.versions.angular[project]) {
@@ -716,12 +720,15 @@ class Build {
                 this.elanJson = require(path.join(process.cwd(), 'elan.json'));
                 this.elanJson.versions = { ...elan_versions };
     
+                console.log(chalk.greenBright('ACTION'), 'Setting new versions:');
                 console.log(chalk.greenBright('ACTION'), [
-                    'Setting new versions:',
                     // FIXME: When versions are not set to be changed, there was an error: TypeError: Cannot read property 'kiosk' of undefined
-                    `Main project: v${elan_versions.main !== elan_versions_old.main ? chalk.rgb(255, 255, 255).bold(elan_versions.main) : elan_versions.main}` + (elan_versions.main !== elan_versions_old.main ? ` (was v${elan_versions_old.main})` : ''),
-                    `Electron: v${elan_versions.electron !== elan_versions_old.electron ? chalk.rgb(255, 255, 255).bold(elan_versions.electron) : elan_versions.electron}` + (elan_versions.electron !== elan_versions_old.electron ? ` (was v${elan_versions_old.electron})` : ''),
-                    `${this.project}: v${elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? chalk.rgb(255, 255, 255).bold(elan_versions.angular[this.project]) : elan_versions.angular[this.project]}` + (elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? ` (was v${elan_versions_old.angular[this.project]})` : '')
+                    `Main project: v${elan_versions.main !== elan_versions_old.main ? `${elan_versions_old.main} -> ${chalk.rgb(255, 255, 255).bold(elan_versions.main)}` : elan_versions.main}`,
+                    // `Main project: v${elan_versions.main !== elan_versions_old.main ? chalk.rgb(255, 255, 255).bold(elan_versions.main) : elan_versions.main}` + (elan_versions.main !== elan_versions_old.main ? ` (was v${elan_versions_old.main})` : ''),
+                    `Electron: v${elan_versions.electron !== elan_versions_old.electron ? `${elan_versions_old.electron} -> ${chalk.rgb(255, 255, 255).bold(elan_versions.electron)}` : elan_versions.electron}`,
+                    // `Electron: v${elan_versions.electron !== elan_versions_old.electron ? chalk.rgb(255, 255, 255).bold(elan_versions.electron) : elan_versions.electron}` + (elan_versions.electron !== elan_versions_old.electron ? ` (was v${elan_versions_old.electron})` : ''),
+                    `${this.project}: v${elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? `${elan_versions_old.angular[this.project]} -> ${chalk.rgb(255, 255, 255).bold(elan_versions.angular[this.project])}` : elan_versions.angular[this.project]}`
+                    // `${this.project}: v${elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? chalk.rgb(255, 255, 255).bold(elan_versions.angular[this.project]) : elan_versions.angular[this.project]}` + (elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? ` (was v${elan_versions_old.angular[this.project]})` : '')
                 ].join(`\n`));
     
                 delete this.elanJson._versions_old;
