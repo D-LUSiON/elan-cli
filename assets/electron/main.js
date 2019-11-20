@@ -11,7 +11,7 @@ const {
 } = electron;
 
 if (!env.production) {
-    app.setName(`${app.getName()} (development mode)`);
+    app.name = `${app.name} (development mode)`;
     app.setPath('userData', `${app.getPath('userData')}-dev`);
 }
 
