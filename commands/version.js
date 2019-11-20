@@ -10,7 +10,7 @@ class Version {
 
     constructor(args) {
         this.description = 'Shows version of the project, Electron and Angular; Sets version of project parts';
-        this.usage = '$ elan version [, project, version] [--version [, --preid]] [--e-version [, --e-preid]]';
+        this.usage = '$ elan version [ set [, project, version, preid] ] [--version [, --preid] ] [--e-version [, --e-preid]]';
         this.usage_options = [
             {
                 option: ['--global'],
@@ -127,7 +127,7 @@ class Version {
     }
 
     setAngularVersion(version, project) {
-        version = semver.valid(version) ? version : semver.inc(this.elanJson.versions.main, version, this.args.preid);
+        version = semver.valid(version) ? version : semver.inc(this.elanJson.versions.angular[project], version, this.args._[4]);
         if (project) {
             this.elanJson.versions.angular[project] = version;
             console.info(chalk.magentaBright(`${project}:`), `${this.elanJson._versions_old.angular[project]} -> ${chalk.greenBright(this.elanJson.versions.angular[project])}`)
