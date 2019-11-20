@@ -17,7 +17,11 @@ class Serve {
             {
                 option: ['--fresh'],
                 description: 'Clears the contents of "www" folder before starting development instance'
-            }
+            },
+            {
+                option: ['--inspect [, port]'],
+                description: 'Binds port to Electron inspector for debugging purposes'
+            },
         ];
         this.options = [];
         this.args = args;
@@ -97,7 +101,11 @@ class Serve {
             }
 
             nodemon({
-                exec: `${electron_path} ./electron`,
+                exec: `${electron_path} ${ this.args['inspect'] ? ` --inspect=${this.args['inspect']}` : ''} ./electron`,
+                // exec: `${electron_path} ./electron`,
+                // args: [
+                //     `--inspect=${this.args['inspect']}`
+                // ],
                 cwd: process.cwd(),
                 verbose: true,
                 watch: [
