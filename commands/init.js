@@ -212,6 +212,12 @@ class Init {
                     message: 'Do you want to skip generation of "spec.ts" test files?',
                     default: false
                 },
+                {
+                    type: 'confirm',
+                    name: 'createApplication',
+                    message: 'Do you want to create default Angular application?',
+                    default: true
+                },
             ]).then(angular_answers => {
                 this.elan_options.angular = {
                     ...angular_answers
@@ -416,62 +422,69 @@ class Init {
 
     _modifyAngularJSON() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.cyan('INFO'), `Adding "dev" environment...`);
             new Promise(rslv => {
-                const dev_env = `export const environment = {\n  production: false\n};\n`;
-
-                fs.writeFile(
-                    path.join(process.cwd(), this.create_in_folder, 'src', 'environments', 'environment.dev.ts'),
-                    dev_env, 'utf8', (err) => {
-                        if (err) console.log(err);
-                        rslv();
-                    });
-            }).then(() => {
-                this._getAngularJson().then(() => {
-                    console.log(chalk.cyan('INFO'), `Adding "dev" config to angular.json and modifying some paths...`);
-                    let configurations = {
-                        ...this.angular_options.projects[this.elan_options.package.name].architect.build.configurations
-                    };
-
-                    configurations = {
-                        production: {
-                            ...configurations.production,
-                            baseHref: '',
-                            outputPath: 'build/app',
-                        },
-                        dev: {
-                            baseHref: '',
-                            outputPath: 'www',
-                            deleteOutputPath: false,
-                            optimization: false,
-                            outputHashing: 'media',
-                            sourceMap: true,
-                            extractCss: false,
-                            namedChunks: true,
-                            aot: false,
-                            extractLicenses: false,
-                            vendorChunk: true,
-                            buildOptimizer: false,
-                            fileReplacements: [{
-                                replace: 'src/environments/environment.ts',
-                                with: 'src/environments/environment.dev.ts'
-                            }]
-                        }
-                    };
-
-                    this.angular_options.projects[this.elan_options.package.name].architect.build.configurations = {
-                        ...configurations
-                    };
+                if (fs.existsSync(path.resolve(this.create_in_folder, 'src', 'environments'))) {
+                    console.log(chalk.cyan('INFO'), `Adding "dev" environment...`);
+                    const dev_env = `export const environment = {\n  production: false\n};\n`;
 
                     fs.writeFile(
-                        path.join(process.cwd(), this.create_in_folder, 'angular.json'),
-                        JSON.stringify(this.angular_options, null, 2),
-                        'utf8',
-                        (err) => {
+                        path.join(process.cwd(), this.create_in_folder, 'src', 'environments', 'environment.dev.ts'),
+                        dev_env, 'utf8', (err) => {
                             if (err) console.log(err);
-                            resolve();
-                        }
-                    );
+                            rslv();
+                        });
+                } else
+                    rslv();
+
+            }).then(() => {
+                this._getAngularJson().then(() => {
+                    if (this.angular_options.projects[this.elan_options.package.name]) {
+                        console.log(chalk.cyan('INFO'), `Adding "dev" config to angular.json and modifying some paths...`);
+                        let configurations = {
+                            ...this.angular_options.projects[this.elan_options.package.name].architect.build.configurations
+                        };
+    
+                        configurations = {
+                            production: {
+                                ...configurations.production,
+                                baseHref: '',
+                                outputPath: 'build/app',
+                            },
+                            dev: {
+                                baseHref: '',
+                                outputPath: 'www',
+                                deleteOutputPath: false,
+                                optimization: false,
+                                outputHashing: 'media',
+                                sourceMap: true,
+                                extractCss: false,
+                                namedChunks: true,
+                                aot: false,
+                                extractLicenses: false,
+                                vendorChunk: true,
+                                buildOptimizer: false,
+                                fileReplacements: [{
+                                    replace: 'src/environments/environment.ts',
+                                    with: 'src/environments/environment.dev.ts'
+                                }]
+                            }
+                        };
+    
+                        this.angular_options.projects[this.elan_options.package.name].architect.build.configurations = {
+                            ...configurations
+                        };
+    
+                        fs.writeFile(
+                            path.join(process.cwd(), this.create_in_folder, 'angular.json'),
+                            JSON.stringify(this.angular_options, null, 2),
+                            'utf8',
+                            (err) => {
+                                if (err) console.log(err);
+                                resolve();
+                            }
+                        );
+                    } else
+                        resolve();
                 });
             });
         });
@@ -479,28 +492,31 @@ class Init {
 
     _modifyBrowserslist() {
         return new Promise((resolve, reject) => {
-            fs.readFile(path.join(process.cwd(), this.create_in_folder, 'browserslist')).then(browserslist => {
-                const brl = browserslist.toString().split(/\n/);
-                let last_idx = -1;
-                brl.forEach((line, idx) => {
-                    if (line.startsWith('#'))
-                        last_idx = idx;
+            if (fs.existsSync(path.resolve(this.create_in_folder, 'browserslist'))) {
+                fs.readFile(path.join(process.cwd(), this.create_in_folder, 'browserslist')).then(browserslist => {
+                    const brl = browserslist.toString().split(/\n/);
+                    let last_idx = -1;
+                    brl.forEach((line, idx) => {
+                        if (line.startsWith('#'))
+                            last_idx = idx;
+                    });
+    
+                    const brl_updated = brl.slice(0, last_idx);
+                    brl_updated.push('');
+                    brl_updated.push('last 2 Chrome versions');
+    
+                    fs.writeFile(
+                        path.join(process.cwd(), this.create_in_folder, 'browserslist'),
+                        brl_updated.join(`\n`),
+                        'utf8',
+                        (err) => {
+                            if (err) console.log(err);
+                            resolve();
+                        }
+                    )
                 });
-
-                const brl_updated = brl.slice(0, last_idx);
-                brl_updated.push('');
-                brl_updated.push('last 2 Chrome versions');
-
-                fs.writeFile(
-                    path.join(process.cwd(), this.create_in_folder, 'browserslist'),
-                    brl_updated.join(`\n`),
-                    'utf8',
-                    (err) => {
-                        if (err) console.log(err);
-                        resolve();
-                    }
-                )
-            });
+            } else
+                resolve();
         });
     }
 
