@@ -5,7 +5,7 @@ const nodemon = require('nodemon');
 const path = require('path');
 const fs = require('fs-extra');
 const chalk = require('chalk');
-const ng = path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng');
+const ng = path.resolve('node_modules', '@angular', 'cli', 'bin', 'ng');
 
 const readline = require('readline');
 
@@ -27,7 +27,7 @@ class Serve {
     }
 
     entry() {
-        this.angularJson = require(path.join(process.cwd(), 'angular.json'));
+        this.angularJson = require(path.resolve('angular.json'));
         this.project = this.args._[1] || this.angularJson.defaultProject;
         console.log(chalk.greenBright('ACTION'), `Starting ElAn live server${this.args._[1] ? (' for project "' + this.project + '"') : ''}...`);
 
@@ -42,12 +42,12 @@ class Serve {
 
     freshStart() {
         return new Promise((resolve, reject) => {
-            if (this.args['fresh'] || !fs.existsSync(path.join(process.cwd(), 'www'))) {
+            if (this.args['fresh'] || !fs.existsSync(path.resolve('www'))) {
                 if (this.args['fresh'])
                     console.log(chalk.greenBright('ACTION'), `Clearing "www" folder...`);
-                fs.remove(path.join(process.cwd(), 'www'))
-                    .then(() => fs.mkdir(path.join(process.cwd(), 'www')))
-                    .then(() => fs.copyFile(path.join(__dirname, '..', 'assets', 'www', 'index.html'), path.join(process.cwd(), 'www', 'index.html')))
+                fs.remove(path.resolve('www'))
+                    .then(() => fs.mkdir(path.resolve('www')))
+                    .then(() => fs.copyFile(path.join(__dirname, '..', 'assets', 'www', 'index.html'), path.resolve('www', 'index.html')))
                     .then(() => {
                         console.log(chalk.cyan('INFO'), `Folder "www" cleared...`);
                         resolve();
@@ -90,7 +90,7 @@ class Serve {
             let electron_version = '';
             let electron_local = true;
             let electron_path;
-            if (fs.existsSync(path.join(process.cwd(), 'node_modules', 'electron'))) {
+            if (fs.existsSync(path.resolve('node_modules', 'electron'))) {
                 electron_local = true;
                 electron_path = path.resolve(process.cwd(), 'node_modules', 'electron', 'dist', 'electron');
                 electron_version = require(path.resolve(process.cwd(), 'node_modules', 'electron', 'package.json')).version;

@@ -31,10 +31,10 @@ class Version {
 
     entry() {
         return new Promise((resolve, reject) => {
-            this.elanJson = fs.existsSync(path.join(process.cwd(), 'elan.json')) ? require(path.join(process.cwd(), 'elan.json')) : null;
-            this.packageJson = fs.existsSync(path.join(process.cwd(), 'package.json')) ? require(path.join(process.cwd(), 'package.json')) : null;
-            this.electronPackageJson = fs.existsSync(path.join(process.cwd(), 'electron', 'package.json')) ? require(path.join(process.cwd(), 'electron', 'package.json')) : null;
-            this.angularJson = fs.existsSync(path.join(process.cwd(), 'angular.json')) ? require(path.join(process.cwd(), 'angular.json')) : null;
+            this.elanJson = fs.existsSync(path.resolve('elan.json')) ? require(path.resolve('elan.json')) : null;
+            this.packageJson = fs.existsSync(path.resolve('package.json')) ? require(path.resolve('package.json')) : null;
+            this.electronPackageJson = fs.existsSync(path.resolve('electron', 'package.json')) ? require(path.resolve('electron', 'package.json')) : null;
+            this.angularJson = fs.existsSync(path.resolve('angular.json')) ? require(path.resolve('angular.json')) : null;
 
             if (this.args._[1] === 'set') {
                 return this.setVersion();
@@ -140,7 +140,7 @@ class Version {
     }
 
     savePackageJson() {
-        return fs.writeFile(path.join(process.cwd(), 'package.json'), JSON.stringify(this.packageJson, null, 4), 'utf8');
+        return fs.writeFile(path.resolve('package.json'), JSON.stringify(this.packageJson, null, 4), 'utf8');
     }
 
     saveElanJson() {
@@ -149,11 +149,11 @@ class Version {
             _versions_old: undefined
         };
         delete updatedElanJson._versions_old;
-        return fs.writeFile(path.join(process.cwd(), 'elan.json'), JSON.stringify(updatedElanJson, null, 4), 'utf8');
+        return fs.writeFile(path.resolve('elan.json'), JSON.stringify(updatedElanJson, null, 4), 'utf8');
     }
 
     saveElectronPackageJson() {
-        return fs.writeFile(path.join(process.cwd(), 'electron', 'package.json'), JSON.stringify(this.electronPackageJson, null, 4), 'utf8');
+        return fs.writeFile(path.resolve('electron', 'package.json'), JSON.stringify(this.electronPackageJson, null, 4), 'utf8');
     }
 
     displayVersion() {
@@ -174,8 +174,8 @@ class Version {
                     ...angularProjects.map(project => `${chalk.magentaBright(project)}${project === this.angularJson.defaultProject ? chalk.grey(' (default)') : ''}${chalk.magentaBright(':')} ${(this.elanJson.versions && this.elanJson.versions.angular && this.elanJson.versions.angular[project]) ? 'v' + this.elanJson.versions.angular[project] : '--none--'}`),
                     '\n',
                     chalk.greenBright(`Packages used:`),
-                    `${chalk.magentaBright('Electron')} v${this.packageJson.devDependencies['electron'] ? require(path.join(process.cwd(), 'node_modules', 'electron', 'package.json')).version : '--none--'}`,
-                    `${chalk.magentaBright('Angular')} v${this.packageJson.dependencies['@angular/core'] ? require(path.join(process.cwd(), 'node_modules', '@angular', 'core', 'package.json')).version : '--none--'}`,
+                    `${chalk.magentaBright('Electron')} v${this.packageJson.devDependencies['electron'] ? require(path.resolve('node_modules', 'electron', 'package.json')).version : '--none--'}`,
+                    `${chalk.magentaBright('Angular')} v${this.packageJson.dependencies['@angular/core'] ? require(path.resolve('node_modules', '@angular', 'core', 'package.json')).version : '--none--'}`,
                 ].join(`\n`), '\n');
 
                 loadingSpinner.stop();

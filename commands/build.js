@@ -8,7 +8,7 @@ const inquirer = require('inquirer');
 
 const { getInstalledPathSync } = require('get-installed-path');
 const npm = getInstalledPathSync('npm');
-const ng = path.join(process.cwd(), 'node_modules', '@angular', 'cli', 'bin', 'ng');
+const ng = path.resolve('node_modules', '@angular', 'cli', 'bin', 'ng');
 const { rebuild } = require('electron-rebuild');
 const webpack = require('webpack');
 const { ncp } = require('ncp'); // Recursive copying
@@ -84,9 +84,9 @@ class Build {
         this.clearRequireCache();
         this.manageOptions();
 
-        this.packageJson = require(path.join(process.cwd(), 'package.json'));
-        this.angularJson = require(path.join(process.cwd(), 'angular.json'));
-        this.elanJson = require(path.join(process.cwd(), 'elan.json'));
+        this.packageJson = require(path.resolve('package.json'));
+        this.angularJson = require(path.resolve('angular.json'));
+        this.elanJson = require(path.resolve('elan.json'));
         this.project = this.args._[1] || this.angularJson.defaultProject;
         
         if (this.args._[1])
@@ -134,10 +134,10 @@ class Build {
     }
 
     clearRequireCache() {
-        delete require.cache[require.resolve(path.join(process.cwd(), 'package.json'))];
-        delete require.cache[require.resolve(path.join(process.cwd(), 'angular.json'))];
-        delete require.cache[require.resolve(path.join(process.cwd(), 'elan.json'))];
-        delete require.cache[require.resolve(path.join(process.cwd(), 'electron', 'package.json'))];
+        delete require.cache[require.resolve(path.resolve('package.json'))];
+        delete require.cache[require.resolve(path.resolve('angular.json'))];
+        delete require.cache[require.resolve(path.resolve('elan.json'))];
+        delete require.cache[require.resolve(path.resolve('electron', 'package.json'))];
     }
 
     manageOptions() {
@@ -181,8 +181,8 @@ class Build {
 
     removeOldBuild() {
         return new Promise((resolve, reject) => {
-            fs.remove(path.join(process.cwd(), 'build'))
-                .then(() => fs.remove(path.join(process.cwd(), 'tmp')))
+            fs.remove(path.resolve('build'))
+                .then(() => fs.remove(path.resolve('tmp')))
                 .then(() => {
                     resolve();
                 })
@@ -312,7 +312,7 @@ class Build {
     buildAngular() {
         return new Promise((resolve, reject) => {
             console.log(chalk.greenBright('ACTION'), `Start building Angular project "${this.project}"...`);
-            const environment = require(path.join(process.cwd(), 'tmp', 'environment.js'));
+            const environment = require(path.resolve('tmp', 'environment.js'));
             const ng_build = spawn('node', [
                 ng,
                 'build',
@@ -338,9 +338,9 @@ class Build {
 
     fixIndexHTML() {
         return new Promise((resolve, reject) => {
-            fs.readFile(path.join(process.cwd(), 'build', 'app', 'index.html')).then(index_html => {
+            fs.readFile(path.resolve('build', 'app', 'index.html')).then(index_html => {
                 index_html = index_html.toString().replace(/type=\"module\"/g, 'type="text/javascript"');
-                fs.writeFile(path.join(process.cwd(), 'build', 'app', 'index.html'), index_html, 'utf8', () => {
+                fs.writeFile(path.resolve('build', 'app', 'index.html'), index_html, 'utf8', () => {
                     resolve();
                 });
             });
@@ -348,8 +348,8 @@ class Build {
     }
 
     copyElectronFiles() {
-        return fs.mkdir(path.join(process.cwd(), 'tmp'))
-            .then(() => fs.copy(path.join(process.cwd(), 'electron'), path.join(process.cwd(), 'tmp'), {
+        return fs.mkdir(path.resolve('tmp'))
+            .then(() => fs.copy(path.resolve('electron'), path.resolve('tmp'), {
                 recursive: true,
                 filter: (path) => {
                     const ignored = ['env', 'node_modules', 'package-lock.json'];
@@ -363,12 +363,12 @@ class Build {
                 }
             }))
             .then(() => {
-                let env_path = path.join(process.cwd(), 'electron', 'env', `environment.${this.project}.${this.options.environment}.js`);
+                let env_path = path.resolve('electron', 'env', `environment.${this.project}.${this.options.environment}.js`);
                 if (!fs.existsSync(env_path)) {
                     console.warn(chalk.rgb(255, 165, 0)('COPY'), `Environment file "${path.join('.', 'electron', 'env', `environment.${this.project}.${this.options.environment}.js`)}" is missing! Falling back to "${path.join('.', 'electron', 'env', `environment.prod.js`)}"...`)
-                    env_path = path.join(process.cwd(), 'electron', 'env', `environment.prod.js`);
+                    env_path = path.resolve('electron', 'env', `environment.prod.js`);
                 }
-                return fs.copy(env_path, path.join(process.cwd(), 'tmp', 'environment.js'))
+                return fs.copy(env_path, path.resolve('tmp', 'environment.js'))
             });
     }
 
@@ -377,7 +377,7 @@ class Build {
         return new Promise((resolve, reject) => {
             console.log(chalk.greenBright('ACTION'), `Installing Electron dependencies in "${dirname}"...`);
             const npm_install = spawn('node', [npm, 'install', '--production'], {
-                cwd: path.join(process.cwd(), 'tmp'),
+                cwd: path.resolve('tmp'),
                 stdio: 'inherit'
             });
             npm_install.once('exit', (code, signal) => {
@@ -392,10 +392,10 @@ class Build {
     installElectronAppDeps(dirname) {
         dirname = dirname ? dirname : 'build';
         return new Promise((resolve, reject) => {
-            if (fs.existsSync(path.join(process.cwd(), dirname, 'node_modules'))) {
+            if (fs.existsSync(path.resolve(dirname, 'node_modules'))) {
                 console.log(chalk.greenBright('ACTION'), `Installing Electron application dependencies in "${dirname}"...`);
                 const install_app_deps = spawn('node', [path.join(__dirname, '..', 'node_modules', 'electron-builder', 'out', 'cli', 'cli.js'), 'install-app-deps'], {
-                    cwd: path.join(process.cwd(), dirname),
+                    cwd: path.resolve(dirname),
                     stdio: 'inherit'
                 });
                 install_app_deps.once('exit', (code, signal) => {
@@ -413,17 +413,17 @@ class Build {
     rebuildElectronNativeModules(dirname) {
         dirname = dirname ? dirname : 'build';
         return new Promise((resolve, reject) => {
-            if (fs.existsSync(path.join(process.cwd(), dirname, 'node_modules'))) {
+            if (fs.existsSync(path.resolve(dirname, 'node_modules'))) {
                 console.log(chalk.greenBright('ACTION'), `Rebuilding Electron native modules in "${dirname}"...`);
                 
                 let electron_version = '';
-                if (fs.existsSync(path.join(process.cwd(), 'node_modules', 'electron'))) {
+                if (fs.existsSync(path.resolve('node_modules', 'electron'))) {
                     electron_version = require(path.resolve(process.cwd(), 'node_modules', 'electron', 'package.json')).version;
                 } else {
                     electron_version = require(path.resolve(__dirname, '..', 'node_modules', 'electron', 'package.json')).version;
                 }
                 rebuild({
-                    buildPath: path.join(process.cwd(), dirname),
+                    buildPath: path.resolve(dirname),
                     electronVersion: electron_version,
                     force: true,
                 }).then(result => {
@@ -433,7 +433,7 @@ class Build {
                     reject(err)
                 });
                 // const electron_rebuild = spawn('node', [path.join(__dirname, '..', 'node_modules', 'electron-rebuild', 'lib', 'src', 'cli.js'), '-f'], {
-                //     cwd: path.join(process.cwd(), dirname),
+                //     cwd: path.resolve(dirname),
                 //     stdio: 'inherit'
                 // });
                 // electron_rebuild.once('exit', (code, signal) => {
@@ -451,12 +451,12 @@ class Build {
     modifyTmpPackageJson() {
         return new Promise((resolve, reject) => {
             console.log(chalk.greenBright('ACTION'), `Modifying temporary package.json...`);
-            const package_json = require(path.join(process.cwd(), 'tmp', 'package.json'));
+            const package_json = require(path.resolve('tmp', 'package.json'));
             if (this.options.eVersion)
                 package_json.version = this.elanJson.versions.electron;
             delete package_json.devDependencies;
             fs.writeFile(
-                path.join(process.cwd(), 'tmp', 'package.json'),
+                path.resolve('tmp', 'package.json'),
                 JSON.stringify(package_json, null, 2),
                 'utf8'
             ).then(() => {
@@ -478,7 +478,7 @@ class Build {
                 dependencies: {}
             };
 
-            const tmp_package_json = require(path.join(process.cwd(), 'tmp', 'package.json'));
+            const tmp_package_json = require(path.resolve('tmp', 'package.json'));
             
             Object.keys(tmp_package_json.dependencies || {}).forEach(dep => {
                 if ((this.elanJson.blacklist || []).includes(dep))
@@ -488,11 +488,11 @@ class Build {
             if (Object.keys(package_json.dependencies).length)
                 console.log(chalk.rgb(0, 128, 255)('INFO'), `Following modules that were added in blacklist will be added as native dependencies:\n    ${Object.keys(package_json.dependencies).map(x => chalk.rgb(255, 165, 0)('"' + x + '"')).join(',\n    ')}`);
 
-            if (!fs.existsSync(path.join(process.cwd(), 'build')))
-                fs.mkdirSync(path.join(process.cwd(), 'build'));
+            if (!fs.existsSync(path.resolve('build')))
+                fs.mkdirSync(path.resolve('build'));
 
             fs.writeFile(
-                path.join(process.cwd(), 'build', 'package.json'),
+                path.resolve('build', 'package.json'),
                 JSON.stringify(package_json, null, 2),
                 'utf8'
             ).then(() => {
@@ -504,13 +504,13 @@ class Build {
     buildElectron() {
         return new Promise((resolve, reject) => {
             console.log(chalk.greenBright('ACTION'), 'Webpacking Electron...');
-            const build_package_json = require(path.join(process.cwd(), 'build', 'package.json'));
+            const build_package_json = require(path.resolve('build', 'package.json'));
 
             webpack({
                 target: 'electron-main',
                 entry: './tmp/main.js',
                 output: {
-                    path: path.join(process.cwd(), 'build'),
+                    path: path.resolve('build'),
                     filename: 'main.js',
                     libraryTarget: 'commonjs',
                 },
@@ -555,14 +555,14 @@ class Build {
         const elan = { ...this.elanJson };
         delete elan._versions_old;
         console.log(chalk.greenBright('ACTION'), `Copying ElAn settings to build folder...`);
-        return fs.writeFile(path.join(process.cwd(), 'build', 'elan.json'), JSON.stringify(elan, null, 4), 'utf8');
+        return fs.writeFile(path.resolve('build', 'elan.json'), JSON.stringify(elan, null, 4), 'utf8');
     }
 
     copyResources() {
         return new Promise((resolve, reject) => {
             if (this.copy_resources) {
                 console.log(chalk.greenBright('ACTION'), `Copying resources to build folder...`);
-                ncp(path.join(process.cwd(), 'resources'), path.join(process.cwd(), 'build', 'resources'), (err) => {
+                ncp(path.resolve('resources'), path.resolve('build', 'resources'), (err) => {
                     if (err)
                         reject(err);
                     else
@@ -582,7 +582,7 @@ class Build {
         if (this.args.debug)
             process.env.DEBUG = 'electron-builder';
 
-        const buildPackageJson = require(path.join(process.cwd(), 'build', 'package.json'));
+        const buildPackageJson = require(path.resolve('build', 'package.json'));
         const app_name = `${(buildPackageJson.productName || buildPackageJson.name).replace(/\s/g, '_')}-${this.elanJson.versions.angular[this.project]}-${this.options.environment}`;
         const config = {
             productName: (buildPackageJson.productName || buildPackageJson.name),
@@ -598,7 +598,7 @@ class Build {
             ],
             asar: this.answers.asar,
             win: {
-                icon: fs.existsSync(path.join(process.cwd(), 'resources', 'icon.ico')) ? path.join(process.cwd(), 'resources', 'icon.ico') : '',
+                icon: fs.existsSync(path.resolve('resources', 'icon.ico')) ? path.resolve('resources', 'icon.ico') : '',
                 target: ['nsis', 'zip', 'portable']
             },
             nsis: {
@@ -608,7 +608,7 @@ class Build {
             },
             linux: {
                 executableName: this.project,
-                icon: fs.existsSync(path.join(process.cwd(), 'resources', 'icon-256x256.png')) ? path.join(process.cwd(), 'resources', 'icon-256x256.png') : '',
+                icon: fs.existsSync(path.resolve('resources', 'icon-256x256.png')) ? path.resolve('resources', 'icon-256x256.png') : '',
                 category: 'Utility',
                 target: [
                     'deb',
@@ -653,8 +653,8 @@ class Build {
         return new Promise((resolve, reject) => {
             if (!this.elanJson.versions) {
                 this.elanJson.versions = {
-                    main: require(path.join(process.cwd(), 'package.json')).version,
-                    electron: require(path.join(process.cwd(), 'electron', 'package.json')).version,
+                    main: require(path.resolve('package.json')).version,
+                    electron: require(path.resolve('electron', 'package.json')).version,
                     angular: {}
                 };
                 Object.entries(this.angularJson.projects).forEach(([project, value]) => {
@@ -711,13 +711,13 @@ class Build {
                 const elan_versions = { ...this.elanJson.versions };
                 const elan_versions_old = { ...this.elanJson._versions_old };
     
-                this.packageJson = require(path.join(process.cwd(), 'package.json'));
+                this.packageJson = require(path.resolve('package.json'));
                 this.packageJson.version = elan_versions.main;
     
-                const electronPackageJson = require(path.join(process.cwd(), 'electron', 'package.json'));
+                const electronPackageJson = require(path.resolve('electron', 'package.json'));
                 electronPackageJson.version = elan_versions.electron;
     
-                this.elanJson = require(path.join(process.cwd(), 'elan.json'));
+                this.elanJson = require(path.resolve('elan.json'));
                 this.elanJson.versions = { ...elan_versions };
     
                 console.log(chalk.greenBright('ACTION'), 'Setting new versions:');
@@ -734,9 +734,9 @@ class Build {
                 delete this.elanJson._versions_old;
     
                 return Promise.all([
-                    fs.writeFile(path.join(process.cwd(), 'package.json'), JSON.stringify(this.packageJson, null, 4), 'utf8'),
-                    fs.writeFile(path.join(process.cwd(), 'electron', 'package.json'), JSON.stringify(electronPackageJson, null, 4), 'utf8'),
-                    fs.writeFile(path.join(process.cwd(), 'elan.json'), JSON.stringify(this.elanJson, null, 4), 'utf8'),
+                    fs.writeFile(path.resolve('package.json'), JSON.stringify(this.packageJson, null, 4), 'utf8'),
+                    fs.writeFile(path.resolve('electron', 'package.json'), JSON.stringify(electronPackageJson, null, 4), 'utf8'),
+                    fs.writeFile(path.resolve('elan.json'), JSON.stringify(this.elanJson, null, 4), 'utf8'),
                 ]);
             } else {
                 resolve();
