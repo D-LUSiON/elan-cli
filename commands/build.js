@@ -721,7 +721,7 @@ class Build {
                 this.elanJson.versions = { ...elan_versions };
     
                 console.log(chalk.greenBright('ACTION'), 'Setting new versions:');
-                console.log(chalk.greenBright('ACTION'), [
+                console.log([
                     // FIXME: When versions are not set to be changed, there was an error: TypeError: Cannot read property 'kiosk' of undefined
                     `Main project: v${elan_versions.main !== elan_versions_old.main ? `${elan_versions_old.main} -> ${chalk.rgb(255, 255, 255).bold(elan_versions.main)}` : elan_versions.main}`,
                     // `Main project: v${elan_versions.main !== elan_versions_old.main ? chalk.rgb(255, 255, 255).bold(elan_versions.main) : elan_versions.main}` + (elan_versions.main !== elan_versions_old.main ? ` (was v${elan_versions_old.main})` : ''),
