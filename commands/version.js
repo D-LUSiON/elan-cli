@@ -31,13 +31,12 @@ class Version {
 
     entry() {
         return new Promise((resolve, reject) => {
-            this.elanJson = fs.existsSync(path.resolve('elan.json')) ? require(path.resolve('elan.json')) : null;
-            this.packageJson = fs.existsSync(path.resolve('package.json')) ? require(path.resolve('package.json')) : null;
-            const electron_src_folder = this.elanJson.template && this.elanJson.template.electronRoot ? this.elanJson.template.electronRoot : 'electron';
-            this.electronPackageJson = fs.existsSync(path.resolve(electron_src_folder, 'package.json')) ? require(path.resolve(electron_src_folder, 'package.json')) : null;
-            this.angularJson = fs.existsSync(path.resolve('angular.json')) ? require(path.resolve('angular.json')) : null;
-
             if (this.args._[1] === 'set') {
+                this.elanJson = fs.existsSync(path.resolve('elan.json')) ? require(path.resolve('elan.json')) : null;
+                this.packageJson = fs.existsSync(path.resolve('package.json')) ? require(path.resolve('package.json')) : null;
+                const electron_src_folder = this.elanJson.template && this.elanJson.template.electronRoot ? this.elanJson.template.electronRoot : 'electron';
+                this.electronPackageJson = fs.existsSync(path.resolve(electron_src_folder, 'package.json')) ? require(path.resolve(electron_src_folder, 'package.json')) : null;
+                this.angularJson = fs.existsSync(path.resolve('angular.json')) ? require(path.resolve('angular.json')) : null;
                 return this.setVersion();
             } else
                 return this.displayVersion();
