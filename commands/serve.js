@@ -217,7 +217,7 @@ class Serve {
     compileElectronTS(files) {
         return new Promise((resolve, reject) => {
             if (this.elanJson.template && this.elanJson.template.language.toLowerCase() === 'ts') {
-                EventLog('info', `Compiling Electron ${files && files.length ? `due to: ${files.join(', ')}` : ''}...`);
+                EventLog('info', `Compiling Electron${files && files.length ? ` due to: ${files.join(', ')}` : ''}...`);
 
                 const ts_watch = spawn('node', [
                     path.join(__dirname, '..', 'node_modules', 'typescript', 'bin', 'tsc'),
