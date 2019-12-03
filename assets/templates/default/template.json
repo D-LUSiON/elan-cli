@@ -1,0 +1,8 @@
+{
+    "name": "default",
+    "templateName": "Default template",
+    "language": "js",
+    "electronRoot": "electron",
+    "ngBuildDir": "www",
+    "eBuildDir": "electron"
+}

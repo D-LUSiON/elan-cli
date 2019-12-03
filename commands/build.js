@@ -13,6 +13,8 @@ const { rebuild } = require('electron-rebuild');
 const webpack = require('webpack');
 const { ncp } = require('ncp'); // Recursive copying
 
+const EventLog = require('../lib/event-log');
+
 class Build {
     constructor(args) {
         this.description = 'Starts build process';
@@ -90,7 +92,7 @@ class Build {
         this.project = this.args._[1] || this.angularJson.defaultProject;
         
         if (this.args._[1])
-            console.log(chalk.greenBright('ACTION'), `Building project "${this.project}" with "${this.options.environment}" environment...`);
+            EventLog('action', `Building project "${this.project}" with "${this.options.environment}" environment...`);
 
         return new Promise((resolve, reject) => {
             if (!this.angularJson.projects[this.project])
@@ -176,7 +178,7 @@ class Build {
         const time = (this.timer_end.getTime() - this.timer_start.getTime());
         const minutes = Math.floor(time / 1000 / 60);
         const seconds = ((time / 1000) - (minutes * 60)).toFixed(3);
-        console.log(`\n`, chalk.rgb(0, 128, 255)('INFO'), `Build process is complete! It took ${minutes} minutes and ${seconds} seconds.`);
+        EventLog('info', `Build process is complete! It took ${minutes} minutes and ${seconds} seconds.`);
     }
 
     removeOldBuild() {
@@ -311,7 +313,7 @@ class Build {
 
     buildAngular() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.greenBright('ACTION'), `Start building Angular project "${this.project}"...`);
+            EventLog('action', `Start building Angular project "${this.project}"...`);
             const environment = require(path.resolve('tmp', 'environment.js'));
             const ng_build = spawn('node', [
                 ng,
@@ -356,7 +358,7 @@ class Build {
                     const found = !!ignored.filter(x => path.replace(process.cwd(), '').substr(1).split(/[\\\/]/).indexOf(x) > -1).length;
                     if (!found) {
                         if (path.replace(process.cwd(), '').substr(1).match(/[A-Za-z0-9]{1,}\.[A-Za-z0-9]{1,}$/))
-                            console.log(chalk.greenBright('COPY'), path.replace(process.cwd(), '').substr(1), chalk.green('->'), `tmp${path.replace(process.cwd(), '').substr(1).replace(/^electron/, '')} (${fs.statSync(path).size} bytes)`);
+                            EventLog('copy', path.replace(process.cwd(), '').substr(1), chalk.green('->'), `tmp${path.replace(process.cwd(), '').substr(1).replace(/^electron/, '')} (${fs.statSync(path).size} bytes)`);
                         return true;
                     } else
                         return false;
@@ -365,7 +367,7 @@ class Build {
             .then(() => {
                 let env_path = path.resolve('electron', 'env', `environment.${this.project}.${this.options.environment}.js`);
                 if (!fs.existsSync(env_path)) {
-                    console.warn(chalk.rgb(255, 165, 0)('COPY'), `Environment file "${path.join('.', 'electron', 'env', `environment.${this.project}.${this.options.environment}.js`)}" is missing! Falling back to "${path.join('.', 'electron', 'env', `environment.prod.js`)}"...`)
+                    EventLog('copy', `Environment file "${path.join('.', 'electron', 'env', `environment.${this.project}.${this.options.environment}.js`)}" is missing! Falling back to "${path.join('.', 'electron', 'env', `environment.prod.js`)}"...`)
                     env_path = path.resolve('electron', 'env', `environment.prod.js`);
                 }
                 return fs.copy(env_path, path.resolve('tmp', 'environment.js'))
@@ -375,7 +377,7 @@ class Build {
     npmInstall(dirname) {
         dirname = dirname ? dirname : 'tmp';
         return new Promise((resolve, reject) => {
-            console.log(chalk.greenBright('ACTION'), `Installing Electron dependencies in "${dirname}"...`);
+            EventLog('action', `Installing Electron dependencies in "${dirname}"...`);
             const npm_install = spawn('node', [npm, 'install', '--production'], {
                 cwd: path.resolve('tmp'),
                 stdio: 'inherit'
@@ -393,7 +395,7 @@ class Build {
         dirname = dirname ? dirname : 'build';
         return new Promise((resolve, reject) => {
             if (fs.existsSync(path.resolve(dirname, 'node_modules'))) {
-                console.log(chalk.greenBright('ACTION'), `Installing Electron application dependencies in "${dirname}"...`);
+                EventLog('action', `Installing Electron application dependencies in "${dirname}"...`);
                 const install_app_deps = spawn('node', [path.join(__dirname, '..', 'node_modules', 'electron-builder', 'out', 'cli', 'cli.js'), 'install-app-deps'], {
                     cwd: path.resolve(dirname),
                     stdio: 'inherit'
@@ -414,7 +416,7 @@ class Build {
         dirname = dirname ? dirname : 'build';
         return new Promise((resolve, reject) => {
             if (fs.existsSync(path.resolve(dirname, 'node_modules'))) {
-                console.log(chalk.greenBright('ACTION'), `Rebuilding Electron native modules in "${dirname}"...`);
+                EventLog('action', `Rebuilding Electron native modules in "${dirname}"...`);
                 
                 let electron_version = '';
                 if (fs.existsSync(path.resolve('node_modules', 'electron'))) {
@@ -427,7 +429,7 @@ class Build {
                     electronVersion: electron_version,
                     force: true,
                 }).then(result => {
-                    console.log(chalk.rgb(0, 128, 255)('INFO'), `Rebuild complete!${result ? (' Result: ' + result.toString()) : ''}`);
+                    EventLog('info', `Rebuild complete!${result ? (' Result: ' + result.toString()) : ''}`);
                     resolve();
                 }).catch(err => {
                     reject(err)
@@ -450,7 +452,7 @@ class Build {
 
     modifyTmpPackageJson() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.greenBright('ACTION'), `Modifying temporary package.json...`);
+            EventLog('action', `Modifying temporary package.json...`);
             const package_json = require(path.resolve('tmp', 'package.json'));
             if (this.options.eVersion)
                 package_json.version = this.elanJson.versions.electron;
@@ -467,11 +469,11 @@ class Build {
 
     createBuildPackageJSON() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.greenBright('ACTION'), `Creating build's package.json...`);
+            EventLog('action', `Creating build's package.json...`);
             const package_json = {
                 name: this.packageJson.name,
                 productName: `${this.packageJson.productName}${this.project !== this.angularJson.defaultProject ? ' - ' + (this.project.charAt(0).toUpperCase() + this.project.substr(1)) : ''}`,
-                version: this.elanJson.versions.electron,
+                version: this.elanJson.versions.angular[this.project] || this.elanJson.versions.electron,
                 description: this.packageJson.description,
                 author: this.packageJson.author,
                 main: 'main.js',
@@ -486,7 +488,7 @@ class Build {
             });
 
             if (Object.keys(package_json.dependencies).length)
-                console.log(chalk.rgb(0, 128, 255)('INFO'), `Following modules that were added in blacklist will be added as native dependencies:\n    ${Object.keys(package_json.dependencies).map(x => chalk.rgb(255, 165, 0)('"' + x + '"')).join(',\n    ')}`);
+                EventLog('info', `Following modules that were added in blacklist will be added as native dependencies:\n    ${Object.keys(package_json.dependencies).map(x => chalk.rgb(255, 165, 0)('"' + x + '"')).join(',\n    ')}`);
 
             if (!fs.existsSync(path.resolve('build')))
                 fs.mkdirSync(path.resolve('build'));
@@ -503,7 +505,7 @@ class Build {
 
     buildElectron() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.greenBright('ACTION'), 'Webpacking Electron...');
+            EventLog('action', 'Webpacking Electron...');
             const build_package_json = require(path.resolve('build', 'package.json'));
 
             webpack({
@@ -537,7 +539,7 @@ class Build {
                     console.error(info.errors);
                     reject(info.errors instanceof Array ? info.errors.join('\n') : info.errors);
                 } else if (stats.hasWarnings()) {
-                    console.log(chalk.rgb(255, 128, 0)('WARNING'), '\n', info.warnings.join('\n'));
+                    EventLog('warning', '\n', info.warnings.join('\n'));
                     resolve();
                 } else {
                     console.log(stats.toString({
@@ -554,14 +556,14 @@ class Build {
     copyElanJsonToBuild() {
         const elan = { ...this.elanJson };
         delete elan._versions_old;
-        console.log(chalk.greenBright('ACTION'), `Copying ElAn settings to build folder...`);
+        EventLog('action', `Copying ElAn settings to build folder...`);
         return fs.writeFile(path.resolve('build', 'elan.json'), JSON.stringify(elan, null, 4), 'utf8');
     }
 
     copyResources() {
         return new Promise((resolve, reject) => {
             if (this.copy_resources) {
-                console.log(chalk.greenBright('ACTION'), `Copying resources to build folder...`);
+                EventLog('action', `Copying resources to build folder...`);
                 ncp(path.resolve('resources'), path.resolve('build', 'resources'), (err) => {
                     if (err)
                         reject(err);
@@ -575,7 +577,7 @@ class Build {
     }
 
     build() {
-        console.log(chalk.greenBright('ACTION'), `Building v${this.elanJson.versions.angular[this.project]} for ${this.answers.os}...`);
+        EventLog('action', `Building v${this.elanJson.versions.angular[this.project]} for ${this.answers.os}...`);
         const builder = require('electron-builder');
         const Platform = builder.Platform;
 
@@ -720,7 +722,7 @@ class Build {
                 this.elanJson = require(path.resolve('elan.json'));
                 this.elanJson.versions = { ...elan_versions };
     
-                console.log(chalk.greenBright('ACTION'), 'Setting new versions:');
+                EventLog('action', 'Setting new versions:');
                 console.log([
                     // FIXME: When versions are not set to be changed, there was an error: TypeError: Cannot read property 'kiosk' of undefined
                     `Main project: v${elan_versions.main !== elan_versions_old.main ? `${elan_versions_old.main} -> ${chalk.rgb(255, 255, 255).bold(elan_versions.main)}` : elan_versions.main}`,

@@ -1,0 +1,8 @@
+{
+    "name": "typescript",
+    "templateName": "Typescript template",
+    "language": "ts",
+    "electronRoot": "src.electron",
+    "ngBuildDir": "prebuild/www",
+    "eBuildDir": "prebuild"
+}

@@ -9,6 +9,8 @@ const elan_package_json = require('../package.json');
 
 const npm = getInstalledPathSync('npm');
 
+const EventLog = require('../lib/event-log');
+
 class Init {
     constructor(args) {
         this.description = `Starts a new project in a specified folder`;
@@ -17,10 +19,13 @@ class Init {
         this.aliases = 'new';
         this.args = args;
         this.create_in_folder = (this.args && this.args._) ? this.args._[1] : '';
+        this.template = (this.args && this.args['template']) ? this.args['template'] : 'default';
+        this.templates = [];
         this.elan_options = {
             blacklist: [],
             package: {},
             angular: {},
+            template: this.template,
             versions: {
                 main: '',
                 electron: '',
@@ -37,7 +42,8 @@ class Init {
         return new Promise((resolve, reject) => {
             if (this.args._[1]) {
                 if (!fs.existsSync(path.resolve(this.create_in_folder))) {
-                    this.askGeneralQuestions()
+                    this.getInstalledTemplates()
+                        .then(() => this.askGeneralQuestions())
                         .then(() => this.askAngularQuestions())
                         .then(() => this.setupAll())
                         .then(() => {
@@ -48,10 +54,10 @@ class Init {
                         });
                 } else {
                     if (fs.existsSync(path.resolve(this.create_in_folder, 'elan.json'))) {
-                        console.log(chalk.cyan('INFO'), `ElAn configuration exist in this folder! Starting from it...`);
+                        EventLog('info', `ElAn configuration exist in this folder! Starting from it...`);
                         this.elan_options.package.name = this.args._[1];
-                        // TODO: Check if the whole project exists
                         this._getElanJson()
+                            .then(() => this.getInstalledTemplates())
                             .then(() => this.setupAll())
                             .then(() => {
                                 resolve();
@@ -66,7 +72,8 @@ class Init {
                                     default: false
                                 }, ]).then(answer => {
                                     if (answer.overwrite) {
-                                        this.askGeneralQuestions()
+                                        this.getInstalledTemplates()
+                                            .then(() => this.askGeneralQuestions())
                                             .then(() => this.askAngularQuestions())
                                             .then(() => this.setupAll())
                                             .then(() => {
@@ -87,8 +94,8 @@ class Init {
                 }
             } else {
                 if (fs.existsSync(path.resolve('elan.json'))) {
-                    // TODO: Check if the whole project exists
                     this._getElanJson()
+                        .then(() => this.getInstalledTemplates())
                         .then(() => this.setupAll())
                         .then(() => {
                             resolve();
@@ -167,14 +174,28 @@ class Init {
                     rslv();
                 });
             }).then(() => {
-                inquirer.prompt([{
-                    type: 'confirm',
-                    name: 'npm_install',
-                    message: 'Do you want to install all dependencies after the project files are created?',
-                    default: this.install_dependencies
-                }, ]).then(answer => {
-                    this.install_dependencies = answer.npm_install;
+                inquirer.prompt([
+                    {
+                        type: 'list',
+                        name: 'template',
+                        message: 'Which template would you like to use?',
+                        choices: this.templates.map(template => `${template.templateName} (${template.language.toUpperCase()})`),
+                        filter: (choice) => this.templates.find(template => choice === `${template.templateName} (${template.language.toUpperCase()})`),
+                        default: 'default'
+                    },
+                    {
+                        type: 'confirm',
+                        name: 'npm_install',
+                        message: 'Do you want to install all dependencies after the project files are created?',
+                        default: this.install_dependencies
+                    },
+                ]).then(answers => {
+                    this.template = answers.template;
+                    this.elan_options.template = this.template;
+                    this.install_dependencies = answers.npm_install;
                     resolve();
+                }).catch(err => {
+                    reject(err);
                 });
             });
         });
@@ -212,12 +233,12 @@ class Init {
                     message: 'Do you want to skip generation of "spec.ts" test files?',
                     default: false
                 },
-                {
-                    type: 'confirm',
-                    name: 'createApplication',
-                    message: 'Do you want to create default Angular application?',
-                    default: true
-                },
+                // {
+                //     type: 'confirm',
+                //     name: 'createApplication',
+                //     message: 'Do you want to create default Angular application?',
+                //     default: true
+                // },
             ]).then(angular_answers => {
                 this.elan_options.angular = {
                     ...angular_answers
@@ -227,10 +248,35 @@ class Init {
         });
     }
 
+    getInstalledTemplates() {
+        return new Promise((resolve, reject) => {
+            const templates_root = path.join(__dirname, '..', 'assets', 'templates');
+            fs.readdir(path.join(__dirname, '..', 'assets', 'templates')).then(folders => {
+                folders.forEach(folder => {
+                    if (fs.statSync(path.join(templates_root, folder)).isDirectory()) {
+                        if (fs.existsSync(path.join(templates_root, folder, 'template.json'))) {
+                            const tpl_info = require(path.join(templates_root, folder, 'template.json'));
+                            this.templates.push(tpl_info);
+                        }
+                    }
+                });
+                if (typeof this.args['template'] === 'string') {
+                    if (!this.templates.filter(template => template.name === this.args['template']).length) {
+                        EventLog('warning', `Template "${this.args['template']}" doesn't exist! Initializing with "default" (JavaScript) template...`);
+                        this.template = 'default';
+                    } else
+                        this.template = this.templates.find(template => template.name === 'default');
+                }
+                this.elan_options.template = this.template;
+                resolve();
+            });
+        });
+    }
+
     setupAll() {
         return new Promise((resolve, reject) => {
             this.initAngular()
-                .then(() => this.copyElectronAssets())
+                .then(() => this.initializeTemplate())
                 .then(() => this.initElectron())
                 .then(() => this.saveElanOptions())
                 .then(() => this.installDependancies())
@@ -241,7 +287,7 @@ class Init {
                 .then(() => this._commitChanges())
                 .then(() => {
                     console.log(chalk.greenBright(`\nProject "${this.elan_options.package.name}" initialized successfuly in "${path.resolve(this.create_in_folder)}"!\n\n`));
-                    console.log(chalk.blueBright(`Note:`, chalk.blue(`If you've chosen to use routes with Angular, don't forget to use hashes!\n(replace "RouterModule.forRoot(routes)" with "RouterModule.forRoot(routes, { useHash: true })")\n\n`)));
+                    console.log(chalk.blueBright(`Note:`, chalk.blue(`If you've chosen to use routes with Angular, don't forget to use hashes or Ctrl-R will show blank app content!\n(replace "RouterModule.forRoot(routes)" with "RouterModule.forRoot(routes, { useHash: true })")\n\n`)));
                     console.log(chalk.greenBright(`Now type in your console:\n`));
                     console.log(chalk.rgb(128, 128, 128)(`$ cd ${this.elan_options.package.name}\n$ elan serve\n`));
                     console.log(chalk.greenBright(`and start building your awesome app!\n\n`));
@@ -258,7 +304,7 @@ class Init {
 
     initAngular() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.cyan('INFO'), `Init Angular...`);
+            EventLog('info', `Init Angular...`);
             const ng_new = spawn('node', [
                 path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'bin', 'ng'),
                 'new',
@@ -276,7 +322,7 @@ class Init {
 
             ng_new.once('exit', (code, signal) => {
                 if (code === 0) {
-                    console.log(chalk.greenBright('DONE'), 'Angular project created!');
+                    EventLog('done', 'Angular project created!');
 
                     this._modifyAngularJSON()
                         .then(() => this._getAngularJson())
@@ -304,15 +350,26 @@ class Init {
         });
     }
 
-    copyElectronAssets() {
+    initializeTemplate() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.cyan('INFO'), `Creating Electron scripts...`);
+            if (typeof this.template === 'string')
+                this.template = this.templates.find(template => template.name === this.template);
+
+            if (!fs.existsSync(path.join(__dirname, '..', 'assets', 'templates', this.template.name))) {
+                EventLog('warning', `Template "${this.template.name}" doesn't exist! Initializing with "default" (JavaScript) template...`);
+                this.template = 'default';
+            }
+
+            this.elan_options.template = this.template;
+
             let ncp_options = {};
             if (!this.angular_options.createApplication)
                 ncp_options = {
-                    filter: (file) => !file.startsWith(path.join(__dirname, '..', 'assets', 'src'))
+                    filter: (file) => !file.startsWith(path.join(__dirname, '..', 'assets', 'templates', this.template.name, 'template.json'))
                 }
-            ncp(path.join(__dirname, '..', 'assets'), path.resolve(this.create_in_folder), ncp_options, () => {
+
+            EventLog('info', `Creating Electron "${this.template.name}" template...`);
+            ncp(path.join(__dirname, '..', 'assets', 'templates', this.template.name), path.resolve(this.create_in_folder), ncp_options, () => {
                 this._modifyElectronPackageJSON().then(() => {
                     resolve();
                 }).catch(error => {
@@ -324,10 +381,10 @@ class Init {
 
     initElectron() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.cyan('INFO'), `Adding Electron dependencies to package.json...`);
+            EventLog('info', `Adding Electron dependencies to package.json...`);
             this._getLatestDepsVersions().then(([electron_version, ngx_electron_version]) => {
-                console.log(chalk.cyan('INFO'), `Latest Electron version:`, chalk.greenBright(`v${electron_version}`));
-                console.log(chalk.cyan('INFO'), `Latest ngx-electron version:`, chalk.greenBright(`v${ngx_electron_version}`));
+                EventLog('info', `Latest Electron version:`, chalk.greenBright(`v${electron_version}`));
+                EventLog('info', `Latest ngx-electron version:`, chalk.greenBright(`v${ngx_electron_version}`));
 
                 if (!this.package_json_options.dependencies) this.package_json_options.dependencies = {};
                 if (!this.package_json_options.devDependencies) this.package_json_options.devDependencies = {};
@@ -367,7 +424,7 @@ class Init {
 
     saveElanOptions() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.cyan('INFO'), `Saving ElAn options...`);
+            EventLog('info', `Saving ElAn options...`);
             const path_to_elan_json = path.resolve(this.create_in_folder, 'elan.json');
             fs.writeFile(path_to_elan_json, JSON.stringify(this.elan_options, null, 2), 'utf8', (err) => {
                 if (err) console.log(err);
@@ -424,7 +481,7 @@ class Init {
         return new Promise((resolve, reject) => {
             new Promise(rslv => {
                 if (fs.existsSync(path.resolve(this.create_in_folder, 'src', 'environments'))) {
-                    console.log(chalk.cyan('INFO'), `Adding "dev" environment...`);
+                    EventLog('info', `Adding "dev" environment...`);
                     const dev_env = `export const environment = {\n  production: false\n};\n`;
 
                     fs.writeFile(
@@ -439,7 +496,7 @@ class Init {
             }).then(() => {
                 this._getAngularJson().then(() => {
                     if (this.angular_options.projects[this.elan_options.package.name]) {
-                        console.log(chalk.cyan('INFO'), `Adding "dev" config to angular.json and modifying some paths...`);
+                        EventLog('info', `Adding "dev" config to angular.json and modifying some paths...`);
                         let configurations = {
                             ...this.angular_options.projects[this.elan_options.package.name].architect.build.configurations
                         };
@@ -523,7 +580,7 @@ class Init {
     _modifyElectronPackageJSON() {
         return new Promise((resolve, reject) => {
             exec('npm view electron-window-state version', (err, stdout, stderr) => {
-                console.log(chalk.cyan('INFO'), `Setting up Electron's package.json`);
+                EventLog('info', `Setting up Electron's package.json`);
 
                 const result = stdout.replace(/\n/g, '');
 
@@ -541,7 +598,7 @@ class Init {
                     devDependencies: {}
                 };
 
-                const path_to_package_json = path.resolve(this.create_in_folder, 'electron', 'package.json');
+                const path_to_package_json = path.resolve(this.create_in_folder, this.template.electronRoot, 'package.json');
 
                 fs.writeFile(path_to_package_json, JSON.stringify({
                     ...this.package_json_options,
@@ -555,14 +612,22 @@ class Init {
 
     _manageIgnores() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.cyan('INFO'), `Modifying ".gitignore"...`);
+            EventLog('info', `Modifying ".gitignore"...`);
             fs.readFile(path.resolve(this.create_in_folder, '.gitignore'), (err, buffer) => {
                 if (err) {
                     reject(err);
                 } else {
                     const gitignore = buffer.toString().split(/\n/);
                     const idx = gitignore.findIndex(x => x === '# compiled output') + 1;
-                    ['/dist-*', '/build', '/www-*', '/www', '/release'].forEach(exception => {
+                    [
+                        '/dist-*',
+                        '/build',
+                        '/release',
+                        `/${this.template.ngBuildDir}`,
+                        `/${this.template.ngBuildDir}-*`,
+                        `/${this.template.eBuildDir}`,
+                        `/${this.template.eBuildDir}-*`,
+                    ].forEach(exception => {
                         gitignore.splice(idx, 0, exception);
                     });
 
@@ -582,7 +647,7 @@ class Init {
     installDependancies() {
         return new Promise((resolve, reject) => {
             if (this.install_dependencies) {
-                console.log(chalk.cyan('INFO'), `Installing Angular dependencies...`);
+                EventLog('info', `Installing Angular dependencies...`);
                 const npm_install = spawn('node', [npm, 'install'], {
                     cwd: path.resolve(this.create_in_folder),
                     stdio: 'inherit'
@@ -594,15 +659,15 @@ class Init {
                         reject(signal);
                 });
             } else {
-                console.log(chalk.rgb(255, 128, 0)('SKIP'), `Skipping installation of Angular dependencies...`);
+                EventLog('skip', `Skipping installation of Angular dependencies...`);
                 resolve();
             }
         }).then(() => {
             return new Promise((resolve, reject) => {
                 if (this.install_dependencies) {
-                    console.log(chalk.cyan('INFO'), `Installing Electron dependencies...`);
+                    EventLog('info', `Installing Electron dependencies...`);
                     const npm_install = spawn('node', [npm, 'install'], {
-                        cwd: path.resolve(this.create_in_folder, 'electron'),
+                        cwd: path.resolve(this.create_in_folder, this.template.electronRoot),
                         stdio: 'inherit'
                     });
                     npm_install.once('exit', (code, signal) => {
@@ -612,7 +677,7 @@ class Init {
                             reject(signal);
                     });
                 } else {
-                    console.log(chalk.rgb(255, 128, 0)('SKIP'), `Skipping installation of Electron dependencies...`);
+                    EventLog('skip', `Skipping installation of Electron dependencies...`);
                     resolve();
                 }
             });
@@ -645,7 +710,7 @@ class Init {
     _modifyReadme() {
         return new Promise((resolve, reject) => {
             if (fs.existsSync(path.resolve(this.create_in_folder, 'README.md'))) {
-                fs.readFile(path.join(__dirname, '..', 'resources', 'README.md'))
+                fs.readFile(path.join(__dirname, '..', 'assets', 'resources', 'README.md'))
                     .then(readme => {
                         const replace_texts = {
                             project_title: (this.elan_options.package.productName || (this.elan_options.package.name || this.create_in_folder).split(/[-_\. \s]/).map(word => `${word.charAt(0).toUpperCase()}${word.substr(1)}`).join('')),
@@ -669,7 +734,7 @@ class Init {
 
     _commitChanges() {
         return new Promise((resolve, reject) => {
-            console.log(chalk.cyan('INFO'), `Creating initial commit...`);
+            EventLog('info', `Creating initial commit...`);
             const Git = require('simple-git')(path.resolve(this.create_in_folder));
             Git.add('.', () => {
                 Git.commit('Initial commit by ElAn CLI', () => {
