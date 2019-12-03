@@ -6,6 +6,9 @@ const loadingSpinner = require('loading-spinner');
 
 const exec = require('child_process').exec;
 
+const EventLog = require('../lib/event-log');
+const readline = require('readline');
+
 class Version {
 
     constructor(args) {
@@ -159,9 +162,10 @@ class Version {
     displayVersion() {
         return new Promise((resolve, reject) => {
             if (this.elanJson && !this.args.global) {
-                console.log(chalk.greenBright(`Package name:`), this.packageJson.name);
-                console.log(chalk.greenBright(`Product name:`), this.packageJson.productName ? this.packageJson.productName : '--none--');
-                console.log(chalk.greenBright(`Description:`), this.packageJson.description ? this.packageJson.description : '--none--', '\n');
+                loadingSpinner.stop();
+                console.info(chalk.greenBright(`Package name:`), this.packageJson.name);
+                console.info(chalk.greenBright(`Product name:`), this.packageJson.productName ? this.packageJson.productName : '--none--');
+                console.info(chalk.greenBright(`Description:`), this.packageJson.description ? this.packageJson.description : '--none--', '\n');
 
                 const angularProjects = Object.entries(this.angularJson.projects).filter(([project, data]) => data.projectType === 'application').map(([project, data]) => project);
 
@@ -178,11 +182,9 @@ class Version {
                     `${chalk.magentaBright('Angular')} v${this.packageJson.dependencies['@angular/core'] ? require(path.resolve('node_modules', '@angular', 'core', 'package.json')).version : '--none--'}`,
                 ].join(`\n`), '\n');
 
-                loadingSpinner.stop();
                 resolve();
             } else {
-                console.info(`${chalk.greenBright('Checking for globally installed versions...')}`);
-
+                EventLog('info', `Checking for globally installed versions...`);
                 loadingSpinner.start(
                     100,
                     {
@@ -220,8 +222,52 @@ class Version {
                             resolve(result);
                         });
                     }),
-                ]).then(([local_versions, elan_latest, angular_latest, electron_latest]) => {
+                    new Promise(resolve => {
+                        const path_to_electron_pkg = path.join(__dirname, '..', 'node_modules', 'electron', 'package.json');
+                        if (fs.existsSync(path_to_electron_pkg)) {
+                            const elan_electron = require(path_to_electron_pkg).version;
+                            resolve(elan_electron);
+                        } else
+                            resolve('');
+                    }),
+                    new Promise(resolve => {
+                        const path_to_ng_pkg = path.join(__dirname, '..', 'node_modules', '@angular', 'cli', 'package.json');
+                        if (fs.existsSync(path_to_ng_pkg)) {
+                            const elan_electron = require(path_to_ng_pkg).version;
+                            resolve(elan_electron);
+                        } else
+                            resolve('');
+                    }),
+                    new Promise(resolve => {
+                        const path_to_ebuilder_pkg = path.join(__dirname, '..', 'node_modules', 'electron-builder', 'package.json');
+                        if (fs.existsSync(path_to_ebuilder_pkg)) {
+                            const elan_electron = require(path_to_ebuilder_pkg).version;
+                            resolve(elan_electron);
+                        } else
+                            resolve('');
+                    }),
+                    new Promise(resolve => {
+                        const path_to_erebuild_pkg = path.join(__dirname, '..', 'node_modules', 'electron-rebuild', 'package.json');
+                        if (fs.existsSync(path_to_erebuild_pkg)) {
+                            const elan_electron = require(path_to_erebuild_pkg).version;
+                            resolve(elan_electron);
+                        } else
+                            resolve('');
+                    }),
+                ]).then(([
+                    local_versions,
+                    elan_latest,
+                    angular_latest,
+                    electron_latest,
+                    elan_electron,
+                    elan_ng_cli,
+                    elan_ebulder,
+                    elan_erebuild
+                ]) => {
                     loadingSpinner.stop();
+                    readline.moveCursor(process.stdout, 0, -1);
+                    process.stdout.clearLine();
+
                     const elan = local_versions.filter(x => x.startsWith('elan-cli'))[0];
                     const elan_ver = elan ? elan.split('@').pop() : '';
 
@@ -232,10 +278,19 @@ class Version {
                     const electron_ver = electron ? electron.split('@').pop() : '';
 
                     console.info([
+                        chalk.greenBright(`Globally installed packages:`),
                         chalk`ElAn-CLI: {${(!elan_ver || elan_latest > elan_ver) ? 'rgb(255,131,0)' : 'green'} ${elan_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(elan_ver && elan_ver < elan_latest) ? (' - newer version available: ' + elan_latest) : ''}}`,
                         chalk`Electron: {${(!electron_ver || electron_latest > electron_ver) ? 'rgb(255,131,0)' : 'green'} ${electron_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(electron_ver && electron_ver < electron_latest) ? ('- newer version available: ' + electron_latest) : ''}}`,
                         chalk`@angular/cli: {${(!angular_ver || angular_latest > angular_ver) ? 'rgb(255,131,0)' : 'green'} ${angular_ver || '--- none installed ---'}} {rgb(35, 198, 200) ${(angular_ver && angular_ver < angular_latest) ? ('- newer version available: ' + angular_latest) : ''}}`,
-                    ].join('\n'));
+                    ].join('\n'), '\n');
+
+                    console.info([
+                        chalk.greenBright(`Current version of ElAn uses the following versions:`),
+                        `Electron: ${chalk.greenBright(elan_electron)}`,
+                        `@angular/cli: ${chalk.greenBright(elan_ng_cli)}`,
+                        `Electron Builder: ${chalk.greenBright(elan_ebulder)}`,
+                        `Electron Rebuild: ${chalk.greenBright(elan_erebuild)}`,
+                    ].join(`\n`));
                     resolve();
                 });
             }
