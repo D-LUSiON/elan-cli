@@ -5,11 +5,14 @@ const nodemon = require('nodemon');
 const path = require('path');
 const fs = require('fs-extra');
 const chalk = require('chalk');
+const {
+    getInstalledPathSync
+} = require('get-installed-path');
+const npm = getInstalledPathSync('npm');
 const ng = path.resolve('node_modules', '@angular', 'cli', 'bin', 'ng');
+const { rebuild } = require('electron-rebuild');
 
 const EventLog = require('../lib/event-log');
-
-const readline = require('readline');
 
 class Serve {
     constructor(args) {
@@ -43,7 +46,6 @@ class Serve {
     entry() {
         this.angularJson = require(path.resolve('angular.json'));
         this.elanJson = require(path.resolve('elan.json'));
-        // this.ng_build_folder = this.elanJson.template && this.elanJson.template.ngBuildDir ? this.elanJson.template.ngBuildDir : this.ng_build_folder;
         if (this.elanJson.template) {
             if (this.elanJson.template.ngBuildDir)
                 this.ng_build_folder = this.elanJson.template.ngBuildDir;
@@ -62,6 +64,7 @@ class Serve {
 
         return this.freshStart()
             .then(() => this.compileElectronTS())
+            .then(() => this.installElectronDependencies())
             .then(() =>
                 Promise.all([
                     this.ngWatch(),
@@ -92,6 +95,66 @@ class Serve {
                     });
             } else
                 resolve();
+        });
+    }
+
+    installElectronDependencies() {
+        return new Promise((resolve, reject) => {
+            if (this.elanJson.template && this.elanJson.template.language && this.elanJson.template.language.toLowerCase() === 'ts') {
+                EventLog('action', `Tidying prebuild "${path.resolve(this.e_build_folder)}" folder...`);
+                fs.remove(path.resolve(this.e_build_folder, 'node_modules'))
+                    .then(() =>
+                        fs.copyFile(
+                            path.resolve(this.e_root_folder, 'package.json'),
+                            path.resolve(this.e_build_folder, 'package.json')
+                        )
+                    ).then(() => {
+                        console.log(npm, path.resolve(this.e_build_folder));
+                        
+                        const npm_install = spawn('node', [npm, 'install'], {
+                            cwd: path.resolve(this.e_build_folder),
+                            stdio: 'inherit'
+                        });
+                        npm_install.once('exit', (code, signal) => {
+                            if (code === 0)
+                                resolve();
+                            else
+                                reject(signal);
+                        });
+                    }).then(() => this.rebuildElectronNativeModules(this.e_build_folder)).then(() => {
+                        resolve();
+                    }).catch(err => reject(err));
+            } else
+                resolve();
+        });
+    }
+
+    rebuildElectronNativeModules(dirname) {
+        dirname = dirname ? dirname : 'build';
+        return new Promise((resolve, reject) => {
+            if (fs.existsSync(path.resolve(dirname, 'node_modules'))) {
+                EventLog('action', `Rebuilding Electron native modules in "${dirname}"...`);
+
+                let electron_version = '';
+                if (fs.existsSync(path.resolve('node_modules', 'electron'))) {
+                    electron_version = require(path.resolve(process.cwd(), 'node_modules', 'electron', 'package.json')).version;
+                } else {
+                    electron_version = require(path.join(__dirname, '..', 'node_modules', 'electron', 'package.json')).version;
+                }
+
+                rebuild({
+                    buildPath: path.resolve(dirname),
+                    electronVersion: electron_version,
+                    force: true,
+                }).then(result => {
+                    EventLog('info', `Rebuild complete!${result ? (' Result: ' + result.toString()) : ''}`);
+                    resolve();
+                }).catch(err => {
+                    reject(err)
+                });
+            } else {
+                resolve();
+            }
         });
     }
 
@@ -154,8 +217,8 @@ class Serve {
             //     electron_version = require(path.resolve(process.cwd(), 'node_modules', 'electron', 'package.json')).version;
             // } else {
             //     electron_local = false;
-            //     electron_path = path.resolve(__dirname, '..', 'node_modules', 'electron', 'dist', 'electron');
-            //     electron_version = require(path.resolve(__dirname, '..', 'node_modules', 'electron', 'package.json')).version;
+            //     electron_path = path.join(__dirname, '..', 'node_modules', 'electron', 'dist', 'electron');
+            //     electron_version = require(path.join(__dirname, '..', 'node_modules', 'electron', 'package.json')).version;
             // }
 
             const electron_js_folder = (this.elanJson.template && this.elanJson.template.language.toLowerCase() === 'ts') ? this.e_build_folder : this.e_root_folder;
