@@ -37,7 +37,6 @@
     "inquirer": "^6.5.0",
     "loading-spinner": "^1.2.1",
     "minimist": "^1.2.0",
-    "ncp": "^2.0.0",
     "node-loader": "^0.6.0",
     "nodemon": "^1.19.4",
     "semver": "^6.3.0",
