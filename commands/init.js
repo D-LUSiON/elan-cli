@@ -3,7 +3,6 @@ const fs = require('fs-extra');
 const inquirer = require('inquirer');
 const chalk = require('chalk');
 const { exec, spawn } = require('child_process');
-const { ncp } = require('ncp'); // Recursive copying
 const { getInstalledPathSync } = require('get-installed-path');
 const elan_package_json = require('../package.json');
 
@@ -153,13 +152,13 @@ class Init {
                 {
                     type: 'input',
                     name: 'keywords',
-                    message: 'Your projects keywords (separate with "," or spaces)',
+                    message: 'Your projects keywords (separate with ",")',
                     default: ''
                 }
             ]).then((general_answers) => {
                 return new Promise((rslv, reject) => {
                     // transform keywords string into array of keywords
-                    general_answers.keywords = general_answers.keywords.split(/[(?:\,\s)\,\s]/g).filter(x => x !== '');
+                    general_answers.keywords = general_answers.keywords.split(/\,/g).map(x => x.trim()).filter(x => x !== '');
 
                     this.elan_options.package = {
                         ...general_answers
@@ -362,14 +361,18 @@ class Init {
 
             this.elan_options.template = this.template;
 
-            let ncp_options = {};
+            let copy_options = {};
             if (!this.angular_options.createApplication)
-                ncp_options = {
+                copy_options = {
                     filter: (file) => !file.startsWith(path.join(__dirname, '..', 'assets', 'templates', this.template.name, 'template.json'))
                 }
 
             EventLog('info', `Creating Electron "${this.template.name}" template...`);
-            ncp(path.join(__dirname, '..', 'assets', 'templates', this.template.name), path.resolve(this.create_in_folder), ncp_options, () => {
+            fs.copy(
+                path.join(__dirname, '..', 'assets', 'templates', this.template.name),
+                path.resolve(this.create_in_folder),
+                copy_options
+            ).then(() => {
                 this._modifyElectronPackageJSON().then(() => {
                     resolve();
                 }).catch(error => {
@@ -625,9 +628,9 @@ class Init {
                         '/release',
                         `/${this.template.ngBuildDir}`,
                         `/${this.template.ngBuildDir}-*`,
-                        `/${this.template.eBuildDir}`,
-                        `/${this.template.eBuildDir}-*`,
-                    ].forEach(exception => {
+                        this.template.eBuildDir !== this.template.eBuildDir ? `/${this.template.eBuildDir}` : undefined,
+                        this.template.eBuildDir !== this.template.eBuildDir ? `/${this.template.eBuildDir}-*` : undefined,
+                    ].filter(x => !!x).forEach(exception => {
                         gitignore.splice(idx, 0, exception);
                     });
 
