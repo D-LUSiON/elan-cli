@@ -11,7 +11,6 @@ const npm = getInstalledPathSync('npm');
 const ng = path.resolve('node_modules', '@angular', 'cli', 'bin', 'ng');
 const { rebuild } = require('electron-rebuild');
 const webpack = require('webpack');
-const { ncp } = require('ncp'); // Recursive copying
 
 const EventLog = require('../lib/event-log');
 
@@ -422,7 +421,7 @@ class Build {
                 if (fs.existsSync(path.resolve('node_modules', 'electron'))) {
                     electron_version = require(path.resolve(process.cwd(), 'node_modules', 'electron', 'package.json')).version;
                 } else {
-                    electron_version = require(path.resolve(__dirname, '..', 'node_modules', 'electron', 'package.json')).version;
+                    electron_version = require(path.join(__dirname, '..', 'node_modules', 'electron', 'package.json')).version;
                 }
                 rebuild({
                     buildPath: path.resolve(dirname),
@@ -517,6 +516,10 @@ class Build {
                     libraryTarget: 'commonjs',
                 },
                 mode: 'production',
+                node: {
+                    __dirname: false,
+                },
+                target: 'electron-main',
                 externals: [
                     (context, request, callback) => {
                         if (build_package_json.dependencies[request])
@@ -564,12 +567,10 @@ class Build {
         return new Promise((resolve, reject) => {
             if (this.copy_resources) {
                 EventLog('action', `Copying resources to build folder...`);
-                ncp(path.resolve('resources'), path.resolve('build', 'resources'), (err) => {
-                    if (err)
-                        reject(err);
-                    else
-                        resolve();
-                });
+                fs.copy(
+                    path.resolve('resources'),
+                    path.resolve('build', 'resources')
+                ).then(() => resolve()).catch(err => reject(err));
             } else {
                 resolve();
             }
