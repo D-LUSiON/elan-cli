@@ -365,9 +365,13 @@ class Build {
             }))
             .then(() => {
                 let env_path = path.resolve('electron', 'env', `environment.${this.project}.${this.options.environment}.js`);
+                let env_path_no_project = path.resolve('electron', 'env', `environment.${this.options.environment}.js`);
                 if (!fs.existsSync(env_path)) {
-                    EventLog('copy', `Environment file "${path.join('.', 'electron', 'env', `environment.${this.project}.${this.options.environment}.js`)}" is missing! Falling back to "${path.join('.', 'electron', 'env', `environment.prod.js`)}"...`)
-                    env_path = path.resolve('electron', 'env', `environment.prod.js`);
+                    if (!fs.existsSync(env_path_no_project)) {
+                        EventLog('copy', `Environment file "${path.join('.', 'electron', 'env', `environment.${this.project}.${this.options.environment}.js`)}" is missing! Falling back to "${path.join('.', 'electron', 'env', `environment.prod.js`)}"...`)
+                        env_path = path.resolve('electron', 'env', `environment.prod.js`);
+                    } else
+                        env_path = env_path_no_project;
                 }
                 return fs.copy(env_path, path.resolve('tmp', 'environment.js'))
             });
