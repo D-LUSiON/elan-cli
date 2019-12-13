@@ -10,9 +10,15 @@ const {
 } = require('get-installed-path');
 const npm = getInstalledPathSync('npm');
 const ng = path.resolve('node_modules', '@angular', 'cli', 'bin', 'ng');
-const { rebuild } = require('electron-rebuild');
+const {
+    rebuild
+} = require('electron-rebuild');
 
 const EventLog = require('../lib/event-log');
+
+const DEFAULT_NG_BUILD_FOLDER = 'www';
+const DEFAULT_E_BUILD_FOLDER = 'prebuild';
+const DEFAULT_E_ROOT_FOLDER = 'electron';
 
 class Serve {
     constructor(args) {
@@ -33,11 +39,12 @@ class Serve {
                 defaultValue: 2.5
             },
         ];
+
         this.options = [];
         this.args = args;
-        this.ng_build_folder = 'www';
-        this.e_build_folder = 'prebuild';
-        this.e_root_folder = 'electron';
+        this.ng_build_folder = DEFAULT_NG_BUILD_FOLDER;
+        this.e_build_folder = DEFAULT_E_BUILD_FOLDER;
+        this.e_root_folder = DEFAULT_E_ROOT_FOLDER;
         this.electron_version = '';
         this.electron_local = true;
         this.electron_path = '';
@@ -78,9 +85,8 @@ class Serve {
             if (this.args['fresh'] || !fs.existsSync(path.resolve(this.ng_build_folder))) {
                 if (this.args['fresh'])
                     EventLog('action', `Clearing "${this.ng_build_folder}" folder...`);
-                fs.remove(path.resolve(this.e_build_folder))
-                    .then(() => fs.remove(path.resolve(this.ng_build_folder)))
-                    .then(() => fs.mkdirs(path.resolve(this.e_build_folder)))
+
+                fs.remove(path.resolve(this.ng_build_folder))
                     .then(() => fs.mkdirs(path.resolve(this.ng_build_folder)))
                     .then(() => fs.copyFile(
                         path.join(__dirname, '..', 'assets', 'templates', (this.elanJson.template && this.elanJson.template.name ? this.elanJson.template.name : 'default'), this.ng_build_folder, 'index.html'),
@@ -88,7 +94,14 @@ class Serve {
                     ))
                     .then(() => {
                         EventLog('info', `Folder "${this.ng_build_folder}" cleared...`);
-                        resolve();
+                        if (this.e_build_folder && this.e_build_folder !== DEFAULT_E_BUILD_FOLDER && this.e_build_folder !== this.e_root_folder) {
+                            fs.remove(path.resolve(this.e_build_folder))
+                                .then(() => fs.mkdirs(path.resolve(this.e_build_folder))).then(() => {
+                                    EventLog('info', `Folder "${this.e_build_folder}" cleared...`);
+                                    resolve();
+                                });
+                        } else
+                            resolve();
                     })
                     .catch(err => {
                         reject(err);
@@ -110,7 +123,7 @@ class Serve {
                         )
                     ).then(() => {
                         console.log(npm, path.resolve(this.e_build_folder));
-                        
+
                         const npm_install = spawn('node', [npm, 'install'], {
                             cwd: path.resolve(this.e_build_folder),
                             stdio: 'inherit'
@@ -223,6 +236,15 @@ class Serve {
 
             const electron_js_folder = (this.elanJson.template && this.elanJson.template.language.toLowerCase() === 'ts') ? this.e_build_folder : this.e_root_folder;
 
+            const watch_folders = [
+                this.e_root_folder,
+                this.ng_build_folder,
+                this.e_build_folder,
+                'resources'
+            ].filter(x => !!x);
+
+            EventLog('info', `Looking for changes in: ${watch_folders.map(f => `"${f}"`).join(', ')}`)
+
             nodemon({
                 exec: [
                     this.electron_path,
@@ -231,12 +253,7 @@ class Serve {
                 ].filter(arg => !!arg).join(' '),
                 cwd: process.cwd(),
                 verbose: true,
-                watch: [
-                    this.e_root_folder,
-                    this.ng_build_folder,
-                    this.e_build_folder,
-                    './resources'
-                ],
+                watch: watch_folders,
                 ext: '*',
                 env: {
                     'NODE_ENV': 'development'
