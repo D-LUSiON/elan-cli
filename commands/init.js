@@ -582,33 +582,26 @@ class Init {
 
     _modifyElectronPackageJSON() {
         return new Promise((resolve, reject) => {
-            exec('npm view electron-window-state version', (err, stdout, stderr) => {
-                EventLog('info', `Setting up Electron's package.json`);
+            EventLog('info', `Setting up Electron's package.json`);
+            const electron_package_options = {
+                name: this.package_json_options.name,
+                productName: this.package_json_options.productName || '',
+                description: this.package_json_options.description || '',
+                author: this.package_json_options.author || '',
+                version: this.package_json_options.version || '',
+                license: this.package_json_options.license || '',
+                main: 'main.js',
+                dependencies: {},
+                devDependencies: {}
+            };
 
-                const result = stdout.replace(/\n/g, '');
+            const path_to_package_json = path.resolve(this.create_in_folder, this.template.electronRoot, 'package.json');
 
-                const electron_package_options = {
-                    name: this.package_json_options.name,
-                    productName: this.package_json_options.productName || '',
-                    description: this.package_json_options.description || '',
-                    author: this.package_json_options.author || '',
-                    version: this.package_json_options.version || '',
-                    license: this.package_json_options.license || '',
-                    main: 'main.js',
-                    dependencies: {
-                        'electron-window-state': `^${result}`
-                    },
-                    devDependencies: {}
-                };
-
-                const path_to_package_json = path.resolve(this.create_in_folder, this.template.electronRoot, 'package.json');
-
-                fs.writeFile(path_to_package_json, JSON.stringify({
-                    ...this.package_json_options,
-                    ...electron_package_options,
-                }, null, 2), 'utf8', () => {
-                    resolve();
-                });
+            fs.writeFile(path_to_package_json, JSON.stringify({
+                ...this.package_json_options,
+                ...electron_package_options,
+            }, null, 2), 'utf8', () => {
+                resolve();
             });
         });
     }
