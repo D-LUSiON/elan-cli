@@ -3,10 +3,10 @@ const fs = require('fs-extra');
 const inquirer = require('inquirer');
 const chalk = require('chalk');
 const { exec, spawn } = require('child_process');
-const { getInstalledPathSync } = require('get-installed-path');
 const elan_package_json = require('../package.json');
 
-const npm = getInstalledPathSync('npm');
+// const npm = require('../lib/get-npm-path')();
+const npm = new (require('../lib/npm'))();
 
 const EventLog = require('../lib/event-log');
 
@@ -644,10 +644,10 @@ class Init {
         return new Promise((resolve, reject) => {
             if (this.install_dependencies) {
                 EventLog('info', `Installing Angular dependencies...`);
-                const npm_install = spawn('node', [npm, 'install'], {
-                    cwd: path.resolve(this.create_in_folder),
-                    stdio: 'inherit'
+                const npm_install = npm.exec('install', [], {
+                    cwd: path.resolve(this.create_in_folder)
                 });
+
                 npm_install.once('exit', (code, signal) => {
                     if (code === 0)
                         resolve();
@@ -662,10 +662,10 @@ class Init {
             return new Promise((resolve, reject) => {
                 if (this.install_dependencies) {
                     EventLog('info', `Installing Electron dependencies...`);
-                    const npm_install = spawn('node', [npm, 'install'], {
-                        cwd: path.resolve(this.create_in_folder, this.template.electronRoot),
-                        stdio: 'inherit'
+                    const npm_install = npm.exec('install', [], {
+                        cwd: path.resolve(this.create_in_folder, this.template.electronRoot)
                     });
+
                     npm_install.once('exit', (code, signal) => {
                         if (code === 0)
                             resolve();
@@ -682,7 +682,8 @@ class Init {
 
     _createEditorConfig() {
         return new Promise((resolve, reject) => {
-            if (!fs.existsSync(path.resolve(this.create_in_folder, '.editorconfig'))) {
+            const editorconfig_path = path.resolve(this.create_in_folder, '.editorconfig');
+            if (!fs.existsSync(editorconfig_path)) {
                 const editorconfig = [
                     'root = true',
                     '',
@@ -694,7 +695,7 @@ class Init {
                     'insert_final_newline = true',
                 ].join(`\n`);
 
-                fs.writeFile(path.resolve(this.create_in_folder, '.editorconfig'), editorconfig, 'utf8', (err) => {
+                fs.writeFile(editorconfig_path, editorconfig, 'utf8', (err) => {
                     if (err) console.log(err);
                     resolve();
                 });

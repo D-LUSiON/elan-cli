@@ -1,4 +1,5 @@
 const fs = require('fs-extra');
+const os = require('os');
 const path = require('path');
 const {
     spawn
@@ -6,8 +7,7 @@ const {
 const chalk = require('chalk');
 const inquirer = require('inquirer');
 
-const { getInstalledPathSync } = require('get-installed-path');
-const npm = getInstalledPathSync('npm');
+const npm = new (require('../lib/npm'))();
 const ng = path.resolve('node_modules', '@angular', 'cli', 'bin', 'ng');
 const { rebuild } = require('electron-rebuild');
 const webpack = require('webpack');
@@ -204,7 +204,7 @@ class Build {
                         'Linux',
                         'MacOS'
                     ],
-                    // default: ['Windows'],
+                    default: os.platform() === 'win32' ? ['Windows'] : (os.platform() === 'linux' ? 'Linux' : 'MacOS'),
                 },
                 {
                     type: 'list',
@@ -215,7 +215,7 @@ class Build {
                         'ia32',
                         'All',
                     ],
-                    default: 'x64',
+                    default: os.arch() === 'x64' ? 'x64' : 'ia32',
                     filter(input) {
                         return input.toLowerCase();
                     }
@@ -381,10 +381,10 @@ class Build {
         dirname = dirname ? dirname : 'tmp';
         return new Promise((resolve, reject) => {
             EventLog('action', `Installing Electron dependencies in "${dirname}"...`);
-            const npm_install = spawn('node', [npm, 'install', '--production'], {
-                cwd: path.resolve('tmp'),
-                stdio: 'inherit'
+            const npm_install = npm.exec('install', ['--production'], {
+                cwd: path.resolve('tmp')
             });
+
             npm_install.once('exit', (code, signal) => {
                 if (code === 0)
                     resolve();

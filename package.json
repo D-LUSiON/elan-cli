@@ -33,7 +33,7 @@
     "electron-rebuild": "1.8.8",
     "figlet": "^1.2.4",
     "fs-extra": "^8.1.0",
-    "get-installed-path": "^4.0.8",
+    "global-modules": "^2.0.0",
     "inquirer": "^6.5.0",
     "loading-spinner": "^1.2.1",
     "minimist": "^1.2.0",

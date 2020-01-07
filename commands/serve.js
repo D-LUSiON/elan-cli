@@ -5,10 +5,9 @@ const nodemon = require('nodemon');
 const path = require('path');
 const fs = require('fs-extra');
 const chalk = require('chalk');
-const {
-    getInstalledPathSync
-} = require('get-installed-path');
-const npm = getInstalledPathSync('npm');
+
+// const npm = require('../lib/get-npm-path')();
+const npm = new (require('../lib/npm'))();
 const ng = path.resolve('node_modules', '@angular', 'cli', 'bin', 'ng');
 const {
     rebuild
@@ -122,12 +121,11 @@ class Serve {
                             path.resolve(this.e_build_folder, 'package.json')
                         )
                     ).then(() => {
-                        console.log(npm, path.resolve(this.e_build_folder));
 
-                        const npm_install = spawn('node', [npm, 'install'], {
-                            cwd: path.resolve(this.e_build_folder),
-                            stdio: 'inherit'
+                        const npm_install = npm.exec('install', [], {
+                            cwd: path.resolve(this.e_build_folder)
                         });
+                        
                         npm_install.once('exit', (code, signal) => {
                             if (code === 0)
                                 resolve();
