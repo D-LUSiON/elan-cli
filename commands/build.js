@@ -213,6 +213,8 @@ class Build {
                     choices: [
                         'x64',
                         'ia32',
+                        'arm64',
+                        'armv7l',
                         'All',
                     ],
                     default: os.arch() === 'x64' ? 'x64' : 'ia32',
