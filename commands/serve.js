@@ -219,18 +219,6 @@ class Serve {
 
     electronWatchForChanges() {
         return new Promise((resolve, reject) => {
-            // let electron_version = '';
-            // let electron_local = true;
-            // let electron_path;
-            // if (fs.existsSync(path.resolve('node_modules', 'electron'))) {
-            //     electron_local = true;
-            //     electron_path = path.resolve(process.cwd(), 'node_modules', 'electron', 'dist', 'electron');
-            //     electron_version = require(path.resolve(process.cwd(), 'node_modules', 'electron', 'package.json')).version;
-            // } else {
-            //     electron_local = false;
-            //     electron_path = path.join(__dirname, '..', 'node_modules', 'electron', 'dist', 'electron');
-            //     electron_version = require(path.join(__dirname, '..', 'node_modules', 'electron', 'package.json')).version;
-            // }
 
             const electron_js_folder = (this.elanJson.template && this.elanJson.template.language.toLowerCase() === 'ts') ? this.e_build_folder : this.e_root_folder;
 
