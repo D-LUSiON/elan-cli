@@ -226,10 +226,14 @@ class Serve {
                 this.e_root_folder,
                 this.ng_build_folder,
                 this.e_build_folder,
-                'resources'
+                'resources',
+                ...(this.elanJson.serve ? (this.elanJson.serve.watch || []) : [])
             ].filter(x => !!x);
 
-            EventLog('info', `Looking for changes in: ${watch_folders.map(f => `"${f}"`).join(', ')}`)
+            const ignore_folders = this.elanJson.serve ? (this.elanJson.serve.ignore || []) : [];
+
+            EventLog('info', `Looking for changes in: ${watch_folders.map(f => `"${f}"`).join(', ')}`);
+            if (ignore_folders.length) EventLog('info', `Ignoring changes in: ${ignore_folders.map(f => `"${f}"`).join(', ')}`);
 
             nodemon({
                 exec: [
@@ -240,6 +244,7 @@ class Serve {
                 cwd: process.cwd(),
                 verbose: true,
                 watch: watch_folders,
+                ignore: ignore_folders,
                 ext: '*',
                 env: {
                     'NODE_ENV': 'development'
@@ -252,6 +257,7 @@ class Serve {
 
             nodemon
                 .on('start', () => {
+                    process.title = `ElAn serve: ${this.elanJson.package.productName} (development mode)`;
                     if (first_start) {
                         EventLog('info', 'App has started');
                         first_start = false;
