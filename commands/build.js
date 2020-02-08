@@ -89,7 +89,7 @@ class Build {
         this.angularJson = require(path.resolve('angular.json'));
         this.elanJson = require(path.resolve('elan.json'));
         this.project = this.args._[1] || this.angularJson.defaultProject;
-        
+
         if (this.args._[1])
             EventLog('action', `Building project "${this.project}" with "${this.options.environment}" environment...`);
 
@@ -112,7 +112,7 @@ class Build {
                     .then(() => this.npmInstall('build'))
                     .then(() => this.installElectronAppDeps('build'))
                     .then(() => this.rebuildElectronNativeModules('build'))
-                    .then(() => this.copyResources())
+                    // .then(() => this.copyResources())
                     .then(() => this.buildAngular())
                     .then(() => this.build())
                     .then(() => this.endTimer())
@@ -148,15 +148,15 @@ class Build {
                     key = 'environment';
                     value = 'prod';
                 }
-                
+
                 // convert key from snake case to camel case
                 key = key.split('-').map(x => `${x.charAt(0).toUpperCase()}${x.substr(1)}`).join('');
                 key = `${key.charAt(0).toLowerCase()}${key.substr(1)}`;
-                
+
                 this.options[key] = value;
             }
         });
-        
+
     }
 
     startTimer() {
@@ -165,7 +165,7 @@ class Build {
             resolve();
         });
     }
-    
+
     endTimer() {
         return new Promise((resolve, reject) => {
             this.timer_end = new Date();
@@ -196,44 +196,44 @@ class Build {
     startAskingQuestions() {
         return new Promise((resolve, reject) => {
             inquirer.prompt([{
-                    type: 'checkbox',
-                    name: 'os',
-                    message: 'Which platform do you want to build for?',
-                    choices: [
-                        'Windows',
-                        'Linux',
-                        'MacOS'
-                    ],
-                    default: os.platform() === 'win32' ? ['Windows'] : (os.platform() === 'linux' ? 'Linux' : 'MacOS'),
-                },
-                {
-                    type: 'list',
-                    name: 'arch',
-                    message: 'What architecture do you want to use?',
-                    choices: [
-                        'x64',
-                        'ia32',
-                        'arm64',
-                        'armv7l',
-                        'All',
-                    ],
-                    default: os.arch() === 'x64' ? 'x64' : 'ia32',
-                    filter(input) {
-                        return input.toLowerCase();
-                    }
-                },
-                {
-                    type: 'confirm',
-                    name: 'asar',
-                    message: `Do you want to use ASAR while building ${this.packageJson.productName || this.packageJson.name}?`,
-                    default: true
-                },
-                {
-                    type: 'confirm',
-                    name: 'resources',
-                    message: `Do you want to use copy contents of "resources" dir to build output?`,
-                    default: true
+                type: 'checkbox',
+                name: 'os',
+                message: 'Which platform do you want to build for?',
+                choices: [
+                    'Windows',
+                    'Linux',
+                    'MacOS'
+                ],
+                default: os.platform() === 'win32' ? ['Windows'] : (os.platform() === 'linux' ? 'Linux' : 'MacOS'),
+            },
+            {
+                type: 'list',
+                name: 'arch',
+                message: 'What architecture do you want to use?',
+                choices: [
+                    'x64',
+                    'ia32',
+                    'arm64',
+                    'armv7l',
+                    'All',
+                ],
+                default: os.arch() === 'x64' ? 'x64' : 'ia32',
+                filter(input) {
+                    return input.toLowerCase();
                 }
+            },
+            {
+                type: 'confirm',
+                name: 'asar',
+                message: `Do you want to use ASAR while building ${this.packageJson.productName || this.packageJson.name}?`,
+                default: true
+            },
+            {
+                type: 'confirm',
+                name: 'resources',
+                message: `Do you want to use copy contents of "resources" dir to build output?`,
+                default: true
+            }
             ]).then((answers) => {
                 this.copy_resources = answers.resources;
                 delete answers.resources;
@@ -282,7 +282,6 @@ class Build {
                                     'tar.gz',
                                     'dir',
                                 ],
-                                
                             };
                             break;
                         case 'MAC':
@@ -301,7 +300,7 @@ class Build {
                     }
                     target_questions.push(target_question);
                 });
-                
+
                 inquirer.prompt([
                     ...target_questions
                 ]).then((answer) => {
@@ -422,7 +421,7 @@ class Build {
         return new Promise((resolve, reject) => {
             if (fs.existsSync(path.resolve(dirname, 'node_modules'))) {
                 EventLog('action', `Rebuilding Electron native modules in "${dirname}"...`);
-                
+
                 let electron_version = '';
                 if (fs.existsSync(path.resolve('node_modules', 'electron'))) {
                     electron_version = require(path.resolve(process.cwd(), 'node_modules', 'electron', 'package.json')).version;
@@ -486,7 +485,7 @@ class Build {
             };
 
             const tmp_package_json = require(path.resolve('tmp', 'package.json'));
-            
+
             Object.keys(tmp_package_json.dependencies || {}).forEach(dep => {
                 if ((this.elanJson.blacklist || []).includes(dep))
                     package_json.dependencies[dep] = tmp_package_json.dependencies[dep];
@@ -598,7 +597,7 @@ class Build {
             artifactName: app_name + '-${os}-${arch}.${ext}',
             buildVersion: this.elanJson.versions.angular && this.elanJson.versions.angular[this.project] ? this.elanJson.versions.angular[this.project] : this.elanJson.versions.main,
             directories: {
-                buildResources: 'resources',
+                // buildResources: 'resources',
                 app: 'build',
                 output: `release/${app_name}` + '-${os}-${arch}'
             },
@@ -606,6 +605,11 @@ class Build {
                 '**/*',
             ],
             asar: this.answers.asar,
+            extraResources: this.copy_resources ? {
+                from: 'resources',
+                to: '',
+                filter: ['**/*', '!.*']
+            } : '',
             win: {
                 icon: fs.existsSync(path.resolve('resources', 'icon.ico')) ? path.resolve('resources', 'icon.ico') : '',
                 target: ['nsis', 'zip', 'portable']
@@ -707,7 +711,7 @@ class Build {
                         this.elanJson.versions.angular[this.project] = this.options.ngVersion;
                     else
                         this.elanJson.versions.angular[this.project] = semver.inc(this.elanJson.versions.angular[this.project], this.options.ngVersion, this.options.ngPreid);
-                    
+
                 }
             }
             resolve();
@@ -719,16 +723,16 @@ class Build {
             if (this.elanJson._versions_old) {
                 const elan_versions = { ...this.elanJson.versions };
                 const elan_versions_old = { ...this.elanJson._versions_old };
-    
+
                 this.packageJson = require(path.resolve('package.json'));
                 this.packageJson.version = elan_versions.main;
-    
+
                 const electronPackageJson = require(path.resolve('electron', 'package.json'));
                 electronPackageJson.version = elan_versions.electron;
-    
+
                 this.elanJson = require(path.resolve('elan.json'));
                 this.elanJson.versions = { ...elan_versions };
-    
+
                 EventLog('action', 'Setting new versions:');
                 console.log([
                     // FIXME: When versions are not set to be changed, there was an error: TypeError: Cannot read property 'kiosk' of undefined
@@ -739,9 +743,9 @@ class Build {
                     `${this.project}: v${elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? `${elan_versions_old.angular[this.project]} -> ${chalk.rgb(255, 255, 255).bold(elan_versions.angular[this.project])}` : elan_versions.angular[this.project]}`
                     // `${this.project}: v${elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? chalk.rgb(255, 255, 255).bold(elan_versions.angular[this.project]) : elan_versions.angular[this.project]}` + (elan_versions.angular[this.project] !== elan_versions_old.angular[this.project] ? ` (was v${elan_versions_old.angular[this.project]})` : '')
                 ].join(`\n`));
-    
+
                 delete this.elanJson._versions_old;
-    
+
                 return Promise.all([
                     fs.writeFile(path.resolve('package.json'), JSON.stringify(this.packageJson, null, 4), 'utf8'),
                     fs.writeFile(path.resolve('electron', 'package.json'), JSON.stringify(electronPackageJson, null, 4), 'utf8'),
