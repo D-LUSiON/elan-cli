@@ -3,7 +3,8 @@ const environment = require('../environment');
 const path = require('path');
 const fs = require('fs');
 const WindowState = require('./window-state');
-const ROOT_DIR = environment.production ? '.' : '..';
+const requireJSON = require('./require-json');
+
 const WINDOW_STATE_PATH = path.join(app.getPath('userData'), 'window-state.json');
 
 class MainWindow {
@@ -16,18 +17,20 @@ class MainWindow {
     createWindow() {
         if (!this.window) {
             this.window = new BrowserWindow({
-                width: this.windowState.width,
-                height: this.windowState.height,
+                width: environment.fixed_width || this.windowState.width,
+                height: environment.fixed_height || this.windowState.height,
                 minWidth: environment.min_width,
                 minHeight: environment.min_height,
                 x: this.windowState.x,
                 y: this.windowState.y,
                 resizable: environment.resizable,
+                maximizable: environment.maximizable,
                 frame: environment.frame,
+                title: app.name,
                 titleBarStyle: environment.titlebar_style,
                 show: false,
                 backgroundColor: environment.background_color,
-                icon: `file://${path.join(__dirname, ROOT_DIR, 'resources', 'icon.png')}`,
+                icon: `file://${path.resolve('resources', 'icon.png')}`,
                 webPreferences: {
                     nodeIntegration: true
                 }
@@ -38,14 +41,18 @@ class MainWindow {
 
             this._manageWinPosition();
 
-            this.window.loadFile(`${ROOT_DIR}/${environment.html_src}/index.html`);
+            this.window.loadFile(`${process.env.ROOT_DIR}/${environment.html_src}/index.html`);
 
             this.window.once('ready-to-show', () => {
                 this.window.show();
             });
 
-            // open the DevTools if not in production mode
-            if (!environment.production) {
+            // disable DevTools
+            if (!environment.allow_devtools) {
+                this.window.webContents.on('devtools-opened', () => {
+                    this.window.webContents.closeDevTools();
+                });
+            } else {
                 this.window.webContents.openDevTools({
                     mode: 'undocked'
                 });
@@ -140,7 +147,7 @@ class MainWindow {
     _restoreOldWindowState() {
         if (fs.existsSync(WINDOW_STATE_PATH)) {
             try {
-                const window_state = require(WINDOW_STATE_PATH);
+                const window_state = requireJSON(WINDOW_STATE_PATH);
                 this.windowState = new WindowState({ ...window_state });
             } catch (error) {
                 this.windowState = new WindowState();

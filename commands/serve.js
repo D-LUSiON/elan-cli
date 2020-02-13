@@ -24,19 +24,25 @@ class Serve {
         this.description = 'Starts a development server';
         this.usage = '$ elan serve [project] [,options]';
         this.usage_options = [{
-                option: ['--fresh'],
-                description: 'Clears the contents of Angular build folder before starting development instance'
-            },
-            {
-                option: ['--inspect [, port]'],
-                description: 'Binds port to Electron inspector for debugging purposes'
-            },
-            {
-                option: ['--delay [ number in seconds]'],
-                description: 'Use this parameter to alter delaying restart of app after files are changed.',
-                values: 'any positive number in seconds',
-                defaultValue: 2.5
-            },
+            option: ['--fresh'],
+            description: 'Clears the contents of Angular build folder before starting development instance'
+        },
+        {
+            option: ['--inspect [, port]'],
+            description: 'Binds port to Electron inspector for debugging purposes'
+        },
+        // {
+        //     // TODO: WIP
+        //     option: ['--env [ environment_name]'],
+        //     description: 'WIP: (not working yet) Starts application with specified environment',
+        //     defaultValue: ''
+        // },
+        {
+            option: ['--delay [ number in seconds]'],
+            description: 'Use this parameter to alter delaying restart of app after files are changed.',
+            values: 'any positive number in seconds',
+            defaultValue: 2.5
+        },
         ];
 
         this.options = [];
@@ -44,6 +50,8 @@ class Serve {
         this.ng_build_folder = DEFAULT_NG_BUILD_FOLDER;
         this.e_build_folder = DEFAULT_E_BUILD_FOLDER;
         this.e_root_folder = DEFAULT_E_ROOT_FOLDER;
+        this.electron_env_path = path.resolve(this.e_root_folder, 'environment.js');
+        this.electron_env = (fs.existsSync(this.electron_env_path)) ? require(this.electron_env_path) : {};
         this.electron_version = '';
         this.electron_local = true;
         this.electron_path = '';
@@ -125,7 +133,7 @@ class Serve {
                         const npm_install = npm.exec('install', [], {
                             cwd: path.resolve(this.e_build_folder)
                         });
-                        
+
                         npm_install.once('exit', (code, signal) => {
                             if (code === 0)
                                 resolve();
@@ -247,7 +255,8 @@ class Serve {
                 ignore: ignore_folders,
                 ext: '*',
                 env: {
-                    'NODE_ENV': 'development'
+                    'ELECTRON_ENV': this.electron_env.production ? '' : 'development',
+                    'ROOT_DIR': '..',
                 },
                 delay: this.args.delay && this.args.delay > 0 ? this.args.delay : 2.5,
                 signal: 'SIGHUP',
@@ -280,7 +289,7 @@ class Serve {
                     reject('Error occured while running monitoring!');
                 });
 
-            EventLog('info', `Serving project using ${this.electron_local ? 'your project': 'ElAn'}'s Electron v${this.electron_version}`);
+            EventLog('info', `Serving project using ${this.electron_local ? 'your project' : 'ElAn'}'s Electron v${this.electron_version}`);
             EventLog('info', 'Type "rs" to restart application');
             EventLog('info', `Press Ctrl-C to quit`);
         });

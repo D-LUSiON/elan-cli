@@ -1,10 +1,22 @@
 const environment = require('../environment');
 const MainWindow = require('./main-window');
+const DataExchange = require('./data-exchange');
 const { app } = require('electron');
+const path = require('path');
+const requireJSON = require('./require-json');
 
 class Application {
     constructor() {
-        this.app = app;
+        if (!environment.production) {
+            requireJSON(path.resolve('package.json')).then(package_json => {
+                app.name = `${package_json.productName || package_json.name} (development mode)`;
+                const user_data_path = app.getPath('userData').split(/\/|\\/);
+                user_data_path.pop();
+
+                app.setPath('userData', `${path.join(...user_data_path, (package_json.productName || package_json.name).split(/\s/).join(''))}-dev`);
+            });
+        }
+
         this.mainWindow = new MainWindow();
 
         this.single_instance = app.requestSingleInstanceLock();
@@ -28,25 +40,21 @@ class Application {
     }
 
     init() {
-        if (!environment.production) {
-            this.app.name = `${this.app.name} (development mode)`;
-            this.app.setPath('userData', `${this.app.getPath('userData')}-dev`);
-        }
-
         // Create window on electron intialization
-        this.app.on('ready', () => {
+        app.on('ready', () => {
             this.mainWindow.createWindow();
+            this.dataExchange = new DataExchange(app);
         });
 
         // Quit when all windows are closed.
-        this.app.on('window-all-closed', () => {
+        app.on('window-all-closed', () => {
             // On macOS specific close process
             if (process.platform !== 'darwin') {
-                this.app.quit();
+                app.quit();
             }
         });
 
-        this.app.on('activate', () => {
+        app.on('activate', () => {
             // macOS specific close process
             if (this.mainWindow.window === null) {
                 this.mainWindow.createWindow();

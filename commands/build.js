@@ -103,6 +103,7 @@ class Build {
                     .then(() => this.increaseVersions())
                     .then(() => this.copyElectronFiles())
                     .then(() => this.modifyTmpPackageJson())
+                    .then(() => this.modifyMainJs())
                     .then(() => this.npmInstall('tmp'))
                     .then(() => this.installElectronAppDeps('tmp'))
                     .then(() => this.rebuildElectronNativeModules('tmp'))
@@ -340,9 +341,10 @@ class Build {
 
     fixIndexHTML() {
         return new Promise((resolve, reject) => {
-            fs.readFile(path.resolve('build', 'app', 'index.html')).then(index_html => {
+            const environment = require(path.resolve('tmp', 'environment.js'));
+            fs.readFile(path.resolve('build', environment.html_src, 'index.html')).then(index_html => {
                 index_html = index_html.toString().replace(/type=\"module\"/g, 'type="text/javascript"');
-                fs.writeFile(path.resolve('build', 'app', 'index.html'), index_html, 'utf8', () => {
+                fs.writeFile(path.resolve('build', environment.html_src, 'index.html'), index_html, 'utf8', () => {
                     resolve();
                 });
             });
@@ -467,6 +469,33 @@ class Build {
                 'utf8'
             ).then(() => {
                 resolve();
+            });
+        });
+    }
+
+    modifyMainJs() {
+        return new Promise((resolve, reject) => {
+            EventLog('action', `Adding environment variables to main.js...`);
+            fs.readFile(path.resolve('tmp', 'main.js'), { encoding: 'utf-8'}, (err, content) => {
+                if (err) reject(err);
+
+                const variables = [
+                    `process.env.ELECTRON_ENV = ${this.options.production ? `'production'` : `'development'`};`,
+                    `process.env.ROOT_DIR = '.';`,
+                ];
+                if (!this.options.production) {
+                    variables.push(`process.env.ELECTRON_ENABLE_LOGGING = 'true';`);
+                    variables.push(`process.env.ELECTRON_ENABLE_STACK_DUMPING = 'true';`);
+                }
+                variables.push(content);
+                content = variables.join('\n');
+                fs.writeFile(
+                    path.resolve('tmp', 'main.js'),
+                    content,
+                    'utf8'
+                ).then(() => {
+                    resolve();
+                });
             });
         });
     }

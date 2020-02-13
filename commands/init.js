@@ -251,7 +251,7 @@ class Init {
         return new Promise((resolve, reject) => {
             const templates_root = path.join(__dirname, '..', 'assets', 'templates');
             fs.readdir(path.join(__dirname, '..', 'assets', 'templates')).then(folders => {
-                folders.forEach(folder => {
+                folders.filter(folder => !folder.startsWith('.')).forEach(folder => {
                     if (fs.statSync(path.join(templates_root, folder)).isDirectory()) {
                         if (fs.existsSync(path.join(templates_root, folder, 'template.json'))) {
                             const tpl_info = require(path.join(templates_root, folder, 'template.json'));
