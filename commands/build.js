@@ -97,7 +97,9 @@ class Build {
             if (!this.angularJson.projects[this.project])
                 reject(`Project with the name "${this.project}" does not exist!`);
             else
+                // this.checkForLibraries()
                 this.startAskingQuestions()
+                    // .then(() => this.startAskingQuestions())
                     .then(() => this.startTimer())
                     .then(() => this.removeOldBuild())
                     .then(() => this.increaseVersions())
@@ -191,6 +193,28 @@ class Build {
                 .catch(() => {
                     resolve();
                 });
+        });
+    }
+
+    checkForLibraries() {
+        // TODO: WIP - compile libraries before packaging app and compile them in specific order
+        return new Promise((resolve, reject) => {
+            const ui = new inquirer.ui.BottomBar();
+            const libraries = Object.keys(this.angularJson.projects).filter(key => this.angularJson.projects[key].projectType === 'library');
+            if (libraries.length) {
+                inquirer.prompt([
+                    {
+                        type: 'checkbox',
+                        name: 'libs',
+                        message: `I've found libraries in your angular.json! Which do you want to compile before packing your app?`,
+                        choices: libraries,
+                    }
+                ]).then(answers => {
+                    console.log(answers);
+                    resolve();
+                });
+            } else
+                resolve();
         });
     }
 
@@ -476,7 +500,7 @@ class Build {
     modifyMainJs() {
         return new Promise((resolve, reject) => {
             EventLog('action', `Adding environment variables to main.js...`);
-            fs.readFile(path.resolve('tmp', 'main.js'), { encoding: 'utf-8'}, (err, content) => {
+            fs.readFile(path.resolve('tmp', 'main.js'), { encoding: 'utf-8' }, (err, content) => {
                 if (err) reject(err);
 
                 const variables = [
