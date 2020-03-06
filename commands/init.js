@@ -519,7 +519,7 @@ class Init {
                                 sourceMap: true,
                                 extractCss: false,
                                 namedChunks: true,
-                                aot: false,
+                                aot: true,
                                 extractLicenses: false,
                                 vendorChunk: true,
                                 buildOptimizer: false,
