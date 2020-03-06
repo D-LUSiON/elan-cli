@@ -23,32 +23,45 @@ class Serve {
     constructor(args) {
         this.description = 'Starts a development server';
         this.usage = '$ elan serve [project] [,options]';
-        this.usage_options = [{
-            option: ['--fresh'],
-            description: 'Clears the contents of Angular build folder before starting development instance'
-        },
-        {
-            option: ['--inspect [, port]'],
-            description: 'Binds port to Electron inspector for debugging purposes'
-        },
-        // {
-        //     // TODO: WIP
-        //     option: ['--env [ environment_name]'],
-        //     description: 'WIP: (not working yet) Starts application with specified environment',
-        //     defaultValue: ''
-        // },
-        {
-            option: ['--delay [ number in seconds]'],
-            description: 'Use this parameter to alter delaying restart of app after files are changed.',
-            values: 'any positive number in seconds',
-            defaultValue: 2.5
-        },
+        this.usage_options = [
+            {
+                option: ['--fresh'],
+                description: 'Clears the contents of Angular build folder before starting development instance'
+            },
+            {
+                option: ['--inspect [, port]'],
+                description: 'Binds port to Electron inspector for debugging purposes'
+            },
+            // {
+            //     // TODO: WIP
+            //     option: ['--env [ environment_name]'],
+            //     description: 'WIP: (not working yet) Starts application with specified environment',
+            //     defaultValue: ''
+            // },
+            {
+                option: ['--delay [ number in seconds]'],
+                description: 'Use this parameter to alter delaying restart of app after files are changed.',
+                values: 'any positive number in seconds',
+                defaultValue: 2.5
+            },
+            {
+                option: ['--watch-lib [ libraries ]', '--wl [ libraries ]'],
+                description: 'Starts watcher for changes in Angular libraries',
+                values: 'comma separated names of libraries',
+            },
+            {
+                option: ['--watch-lib-delay [ delay ]', '--wld [ delay ]'],
+                description: 'Delay starting each library watcher',
+                values: 'any positive number in seconds',
+            },
         ];
 
         this.options = [];
         this.args = args;
         this.ng_build_folder = DEFAULT_NG_BUILD_FOLDER;
         this.e_build_folder = DEFAULT_E_BUILD_FOLDER;
+        this.ng_lib_watch = (this.args['watch-lib'] || this.args['wl']) ? (this.args['watch-lib'] || this.args['wl']).split(',') : [];
+        this.ng_lib_watch_delay = (this.args['watch-lib-delay'] || this.args['wld'] || 1);
         this.e_root_folder = DEFAULT_E_ROOT_FOLDER;
         this.electron_env_path = path.resolve(this.e_root_folder, 'environment.js');
         this.electron_env = (fs.existsSync(this.electron_env_path)) ? require(this.electron_env_path) : {};
@@ -71,7 +84,6 @@ class Serve {
         this.project = this.args._[1] || this.angularJson.defaultProject;
         this.getElectronVersion();
 
-
         if (this.elanJson.template && this.elanJson.template.language)
             EventLog('info', `This project is using "${this.elanJson.template.language}" language`);
         EventLog('action', `Starting ElAn live server${this.args._[1] ? (` for project "${this.project}"`) : ''}...`);
@@ -81,6 +93,7 @@ class Serve {
             .then(() => this.installElectronDependencies())
             .then(() =>
                 Promise.all([
+                    this.ngWatchLibraries(),
                     this.ngWatch(),
                     this.electronWatch(),
                 ])
@@ -189,29 +202,71 @@ class Serve {
         }
     }
 
-    ngWatch() {
+    ngWatchLibraries() {
+        return Promise.all(
+            this.ng_lib_watch.map((lib, idx) => this._watchLibrary(lib, [], idx * this.ng_lib_watch_delay))
+        );
+    }
+
+    _watchLibrary(lib_name, params, delay) {
+        if (!params) params = [];
+        if (!delay) delay = 0;
         return new Promise((resolve, reject) => {
-            this.ng_build = spawn('node', [
-                ng,
-                'build',
-                this.project,
-                '--watch',
+            setTimeout(() => {
+                EventLog('info', `Watching for changes in ${this.angularJson.projects[lib_name].projectType} "${lib_name}"...`);
+                const ng_build = spawn('node', [
+                    ng,
+                    'build',
+                    lib_name,
+                    '--watch',
+                    ...params
+                ], {
+                    cwd: process.cwd(),
+                    stdio: 'inherit'
+                });
+    
+                ng_build.once('exit', (code, signal) => {
+                    if (code === 0) {
+                        resolve();
+                    } else {
+                        reject(signal);
+                    }
+                });
+            }, delay * 1000);
+        });
+    }
+
+    ngWatch() {
+        return this._watchLibrary(
+            this.project,
+            [
                 `${this.args['prod'] ? '--prod' : '--configuration=dev'}`,
                 `--outputPath=./${this.ng_build_folder}`,
                 '--baseHref='
-            ], {
-                cwd: process.cwd(),
-                stdio: 'inherit'
-            });
+            ]
+        );
+        // return new Promise((resolve, reject) => {
+        //     this.ng_build = spawn('node', [
+        //         ng,
+        //         'build',
+        //         this.project,
+        //         '--watch',
+        //         `${this.args['prod'] ? '--prod' : '--configuration=dev'}`,
+        //         `--outputPath=./${this.ng_build_folder}`,
+        //         '--baseHref='
+        //     ], {
+        //         cwd: process.cwd(),
+        //         stdio: 'inherit'
+        //     });
 
-            this.ng_build.once('exit', (code, signal) => {
-                if (code === 0) {
-                    resolve();
-                } else {
-                    reject(signal);
-                }
-            });
-        });
+        //     this.ng_build.once('exit', (code, signal) => {
+        //         if (code === 0) {
+        //             resolve();
+        //         } else {
+        //             reject(signal);
+        //         }
+        //     });
+        // });
     }
 
     electronWatch() {
@@ -240,7 +295,7 @@ class Serve {
 
             const ignore_folders = this.elanJson.serve ? (this.elanJson.serve.ignore || []) : [];
 
-            EventLog('info', `Looking for changes in: ${watch_folders.map(f => `"${f}"`).join(', ')}`);
+            EventLog('info', `Watching for changes in folders: ${watch_folders.map(f => `"${f}"`).join(', ')}`);
             if (ignore_folders.length) EventLog('info', `Ignoring changes in: ${ignore_folders.map(f => `"${f}"`).join(', ')}`);
 
             nodemon({
