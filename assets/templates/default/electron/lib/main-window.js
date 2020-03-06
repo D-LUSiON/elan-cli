@@ -11,10 +11,10 @@ class MainWindow {
     constructor() {
         this.window = null;
         this.windowState = null;
-        this._restoreOldWindowState();
     }
 
-    createWindow() {
+    async createWindow() {
+        await this._restoreOldWindowState();
         if (!this.window) {
             this.window = new BrowserWindow({
                 width: environment.fixed_width || this.windowState.width,
@@ -144,10 +144,10 @@ class MainWindow {
         });
     }
 
-    _restoreOldWindowState() {
+    async _restoreOldWindowState() {
         if (fs.existsSync(WINDOW_STATE_PATH)) {
             try {
-                const window_state = requireJSON(WINDOW_STATE_PATH);
+                const window_state = await requireJSON(WINDOW_STATE_PATH);
                 this.windowState = new WindowState({ ...window_state });
             } catch (error) {
                 this.windowState = new WindowState();

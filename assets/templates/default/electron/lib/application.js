@@ -40,6 +40,7 @@ class Application {
     }
 
     init() {
+        app.allowRendererProcessReuse = true;
         // Create window on electron intialization
         app.on('ready', () => {
             this.mainWindow.createWindow();
