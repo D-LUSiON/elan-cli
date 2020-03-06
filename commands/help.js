@@ -49,17 +49,16 @@ class Help {
                 });
             } else if (this.args._[1]) {
                 const command_name = this.args._[1];
-
-                if (fs.existsSync(path.join(__dirname, command_name))) {
-                    const commandController = require(`./${command_name}.js`);
+                const command_path = path.join(__dirname, `${command_name}.js`);
+                if (fs.existsSync(command_path)) {
+                    const commandController = require(command_path);
     
                     const command = new commandController();
                     const help_lines = [
-                        `${chalk.green('Command:')} ${chalk.rgb(128, 255, 128)(command_name)}`,
-                        `Aliases: ${command.aliases || '-- none --'}`,
-                        `${chalk.rgb(0, 128, 255)('Usage:')} ${command.usage}`,
-                        `${chalk.rgb(0, 128, 255)('Usage options:')} ${command.usage_options.length ? command.usage_options.map(option => `${option.option} - ${option.description}`).join('\n') : '-- none --'}`,
+                        `${chalk.rgb(128, 255, 128)('Command:')} ${command_name}${ command.aliases ? ' (alias: ' + command.aliases + ')' : ''}`,
                         `${chalk.rgb(255, 128, 0)('Description:')} ${command.description}`,
+                        `${chalk.rgb(0, 128, 255)('Usage:')} ${command.usage}`,
+                        `${chalk.rgb(0, 128, 255)('Usage options:')} ${command.usage_options.length ? '\n' + command.usage_options.map(option => `    ${chalk.bold(option.option[0]) + (option.option.length > 1 ? ' (or ' + option.option.slice(1).join(', ') + ')' : '')} - ${option.description}\n    Accepted values: ${option.values}\n    Default value: ${option.defaultValue || '-- none --'}\n`).join('\n') : '-- none --'}`,
                         `\n`
                     ].join('\n');
                     console.log(help_lines);
