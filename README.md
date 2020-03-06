@@ -45,6 +45,7 @@ You can use following commands:
 - Init Angular multi-project
 - Create resources from image for compiler
 - Setup if project uses local index.html or loads Express http server
+- Start watchers for NG libraries
 - Electron wrapper library with pre-defined classes
 
 ## Credits
