@@ -1,50 +1,53 @@
 {
-  "name": "elan-cli",
-  "version": "0.2.0-beta.5",
-  "description": "CLI tool to init and manage Electron/Angular applications",
-  "main": "index.js",
-  "bin": {
-    "elan": "./index.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/D-LUSiON/elan-cli.git"
-  },
-  "keywords": [
-    "cli",
-    "electron",
-    "angular",
-    "tool",
-    "manage tool",
-    "build tool"
-  ],
-  "author": "D-LUSiON",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/D-LUSiON/elan-cli/issues"
-  },
-  "homepage": "https://github.com/D-LUSiON/elan-cli#readme",
-  "dependencies": {
-    "@angular/cli": "^9.1.6",
-    "chalk": "^3.0.0",
-    "chokidar": "^3.4.0",
-    "electron": "^8.3.0",
-    "electron-builder": "20.44.4",
-    "electron-rebuild": "1.10.0",
-    "figlet": "^1.4.0",
-    "fs-extra": "^8.1.0",
-    "global-modules": "^2.0.0",
-    "inquirer": "^7.1.0",
-    "loading-spinner": "^1.2.1",
-    "minimist": "^1.2.5",
-    "node-loader": "^0.6.0",
-    "nodemon": "^2.0.4",
-    "semver": "^7.3.2",
-    "simple-git": "^1.132.0",
-    "typescript": "^3.9.2",
-    "webpack": "^4.43.0"
-  },
-  "devDependencies": {
-    "codelyzer": "^5.2.2"
-  }
+    "name": "elan-cli",
+    "version": "0.2.0-beta.5",
+    "description": "CLI tool to init and manage Electron/Angular applications",
+    "main": "index.js",
+    "bin": {
+        "elan": "./index.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/D-LUSiON/elan-cli.git"
+    },
+    "publishConfig": {
+        "registry": "https://www.npmjs.com/"
+    },
+    "keywords": [
+        "cli",
+        "electron",
+        "angular",
+        "tool",
+        "manage tool",
+        "build tool"
+    ],
+    "author": "D-LUSiON",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/D-LUSiON/elan-cli/issues"
+    },
+    "homepage": "https://github.com/D-LUSiON/elan-cli#readme",
+    "dependencies": {
+        "@angular/cli": "^9.1.6",
+        "chalk": "^3.0.0",
+        "chokidar": "^3.4.0",
+        "electron": "^8.3.0",
+        "electron-builder": "20.44.4",
+        "electron-rebuild": "1.10.0",
+        "figlet": "^1.4.0",
+        "fs-extra": "^8.1.0",
+        "global-modules": "^2.0.0",
+        "inquirer": "^7.1.0",
+        "loading-spinner": "^1.2.1",
+        "minimist": "^1.2.5",
+        "node-loader": "^0.6.0",
+        "nodemon": "^2.0.4",
+        "semver": "^7.3.2",
+        "simple-git": "^1.132.0",
+        "typescript": "^3.9.2",
+        "webpack": "^4.43.0"
+    },
+    "devDependencies": {
+        "codelyzer": "^5.2.2"
+    }
 }
