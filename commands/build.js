@@ -115,7 +115,7 @@ class Build {
                     .then(() => this.npmInstall('build'))
                     .then(() => this.installElectronAppDeps('build'))
                     .then(() => this.rebuildElectronNativeModules('build'))
-                    // .then(() => this.copyResources())
+                    .then(() => this.copyResourcesFolder())
                     .then(() => this.buildAngular())
                     .then(() => this.build())
                     .then(() => this.endTimer())
@@ -577,7 +577,6 @@ class Build {
                 node: {
                     __dirname: false,
                 },
-                target: 'electron-main',
                 externals: [
                     (context, request, callback) => {
                         if (build_package_json.dependencies[request])
@@ -623,12 +622,58 @@ class Build {
 
     copyResources() {
         return new Promise((resolve, reject) => {
+            const elan = { ...this.elanJson };
+            EventLog('action', `Copying resources to build folder...`);
+            fs.copy(
+                path.resolve('resources'),
+                path.resolve('build', 'resources'),
+                {
+                    filter: (file) => {
+                        if (elan.resources && Object.keys(elan.resources).length) {
+                            let has_elan_actions = false;
+                            Object.keys(elan.resources).forEach(dir => {
+                                if (file.startsWith(path.resolve('resources', dir)))
+                                    has_elan_actions = true;
+                            });
+                            return !has_elan_actions;
+                        }
+                        return true;
+                    }
+                }
+            ).then(() => resolve()).catch(err => reject(err));
+        });
+    }
+
+    copyResourcesFolder() {
+        return new Promise((resolve, reject) => {
+            const elan = { ...this.elanJson };
             if (this.copy_resources) {
-                EventLog('action', `Copying resources to build folder...`);
-                fs.copy(
-                    path.resolve('resources'),
-                    path.resolve('build', 'resources')
-                ).then(() => resolve()).catch(err => reject(err));
+                if (elan.resources && Object.keys(elan.resources).length) {
+                    const asar = require('asar');
+                    Object.keys(elan.resources).forEach(folder => {
+                        if (elan.resources[folder] === 'pack-dirs') {
+                            const pack_dirs = [];
+                            fs.readdir(path.resolve('resources', folder)).then(dirs => {
+                                dirs.forEach(dir => {
+                                    pack_dirs.push({
+                                        src: path.resolve('resources', folder, dir),
+                                        dest: path.resolve('build', 'resources', folder),
+                                        filename: `${dir}.asar`
+                                    });
+                                });
+                                Promise.all(pack_dirs.map((dir) => {
+                                    EventLog('action', `Packing resource folder "${path.resolve(dir.src, dir.filename)}"...`)
+                                    return asar.createPackage(dir.src, dir.filename)
+                                        .then(() => fs.copy(path.resolve(dir.filename), path.join(dir.dest, dir.filename)))
+                                        .then(() => fs.remove(path.resolve(dir.filename)));
+                                })).then((results) => {
+                                    this.copyResources().then(() => resolve());
+                                }).catch(err => reject(err));
+                            });
+                        }
+                    });
+                } else
+                    this.copyResources().then(() => resolve()).catch((err) => reject(err));
             } else {
                 resolve();
             }
@@ -659,7 +704,7 @@ class Build {
             ],
             asar: this.answers.asar,
             extraResources: this.copy_resources ? {
-                from: 'resources',
+                from: 'build/resources',
                 to: '',
                 filter: ['**/*', '!.*']
             } : '',
