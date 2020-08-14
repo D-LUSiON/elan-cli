@@ -380,7 +380,7 @@ class Build {
             .then(() => fs.copy(path.resolve('electron'), path.resolve('tmp'), {
                 recursive: true,
                 filter: (path) => {
-                    const ignored = ['env', 'node_modules', 'package-lock.json'];
+                    const ignored = ['env', 'node_modules', 'package-lock.json', 'environment.js'];
                     const found = !!ignored.filter(x => path.replace(process.cwd(), '').substr(1).split(/[\\\/]/).indexOf(x) > -1).length;
                     if (!found) {
                         if (path.replace(process.cwd(), '').substr(1).match(/[A-Za-z0-9]{1,}\.[A-Za-z0-9]{1,}$/))
@@ -400,6 +400,7 @@ class Build {
                     } else
                         env_path = env_path_no_project;
                 }
+                EventLog('copy', `Using Electron environment "${env_path}"...`)
                 return fs.copy(env_path, path.resolve('tmp', 'environment.js'))
             });
     }
