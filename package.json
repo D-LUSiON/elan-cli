@@ -1,6 +1,6 @@
 {
     "name": "elan-cli",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "description": "CLI tool to init and manage Electron/Angular applications",
     "main": "index.js",
     "bin": {

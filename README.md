@@ -13,6 +13,10 @@ Install ElAn as global dependency:
 
 ```npm install -g elan-cli```
 
+If you're installing under linux and you get "Error: EACCES: permission denied, mkdtemp ...", install like this:
+
+```npm install -g elan-cli --unsafe-perm=true --allow-root```
+
 ## Usage
 
 You can use following commands:
